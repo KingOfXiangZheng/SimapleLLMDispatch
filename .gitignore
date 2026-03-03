@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+dist/
+.DS_Store
+
+# DB
+*.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
