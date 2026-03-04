@@ -23,6 +23,28 @@
           </select>
         </div>
       </div>
+
+      <!-- Provider quick select -->
+      <div style="margin-bottom: 1rem">
+        <label style="font-size:0.8rem;color:var(--dim);font-weight:500;margin-bottom:0.5rem;display:block">
+          从供应商导入模型（点击添加/取消）
+        </label>
+        <div class="provider-tags" v-if="providers && providers.length">
+          <span 
+            v-for="p in providers" 
+            :key="p.id" 
+            class="provider-tag"
+            :class="{ 'provider-tag-selected': isProviderAllSelected(p) }"
+            @click="toggleProviderModels(p)"
+            :title="isProviderAllSelected(p) ? '点击取消该供应商所有模型' : '点击添加该供应商所有模型'"
+          >
+            {{ p.name }} ({{ getProviderModelCount(p) }})
+          </span>
+        </div>
+        <div v-else style="font-size:0.8rem;color:var(--muted)">
+          暂无供应商，请先添加供应商
+        </div>
+      </div>
       
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
@@ -73,10 +95,55 @@ import { computed } from 'vue'
 const props = defineProps({
   show: Boolean,
   editingGroup: Object,
-  initialForm: Object
+  initialForm: Object,
+  providers: {
+    type: Array,
+    default: () => []
+  }
 })
 
-const emit = defineEmits(['close', 'save'])
+function getProviderModelCount(provider) {
+  const sm = provider.selected_models
+  if (!sm) return (provider.models || []).length
+  if (!sm.length) return 0
+  if (typeof sm[0] === 'string') return sm.length
+  return sm.length
+}
+
+function getProviderModels(provider) {
+  const sm = provider.selected_models
+  if (!sm) return provider.selected_models.map(item => item.model) || []
+  if (!sm.length) return []
+  if (typeof sm[0] === 'string') return sm
+  return sm.map(s => s.model)
+}
+
+function isProviderAllSelected(provider) {
+  if (!props.initialForm) return false
+  const models = getProviderModels(provider)
+  if (!models.length) return false
+  const currentSet = props.initialForm.target_set
+  return models.every(m => currentSet.has(m))
+}
+
+function toggleProviderModels(provider) {
+  if (!props.initialForm) return
+  
+  const models = getProviderModels(provider)
+  if (!models.length) return
+  
+  const currentSet = props.initialForm.target_set
+  const allSelected = models.every(m => currentSet.has(m))
+  
+  const newSet = new Set(currentSet)
+  if (allSelected) {
+    models.forEach(m => newSet.delete(m))
+  } else {
+    models.forEach(m => newSet.add(m))
+  }
+  
+  props.initialForm.target_set = newSet
+}
 
 const filteredAndSortedGroupModels = computed(() => {
   if (!props.initialForm || !props.initialForm.allModels) return []
@@ -98,7 +165,6 @@ function toggleGroupModel(m) {
   } else {
     props.initialForm.target_set.add(m)
   }
-  // Trigger reactivity by reassigning
   props.initialForm.target_set = new Set(props.initialForm.target_set)
 }
 </script>
@@ -139,5 +205,32 @@ function toggleGroupModel(m) {
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border);
+}
+
+.provider-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.provider-tag {
+  display: inline-block;
+  padding: 0.35rem 0.65rem;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.provider-tag:hover {
+  background: rgba(99, 102, 241, 0.3);
+}
+
+.provider-tag-selected {
+  background: rgba(99, 102, 241, 0.4);
+  font-weight: 600;
 }
 </style>

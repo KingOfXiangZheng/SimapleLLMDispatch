@@ -48,8 +48,8 @@ def list_all_models():
     providers = ProviderDAO.get_all()
     model_set = set()
     for p in providers:
-        for m in (p.get("models") or []):
-            model_set.add(m)
+        for m in (p.get("selected_models") or []):
+            model_set.add(m["model"])
     return jsonify(sorted(model_set))
 
 
