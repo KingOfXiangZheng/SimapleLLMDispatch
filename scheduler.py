@@ -58,10 +58,16 @@ def parse_selected_models(provider: dict) -> list[dict]:
 
 
 def get_effective_models(provider: dict) -> list[str]:
+    sm = provider.get("selected_models")
+    # None means the key was never set (legacy) → fall back to all models
+    if sm is None:
+        return provider.get("models", [])
+    # Empty list means user explicitly deselected all
+    if not sm:
+        return []
+    # Normalize and return
     selected = parse_selected_models(provider)
-    if selected:
-        return [s["model"] for s in selected]
-    return provider.get("models", [])
+    return [s["model"] for s in selected]
 
 
 def get_model_rpd(provider: dict, model: str) -> int:

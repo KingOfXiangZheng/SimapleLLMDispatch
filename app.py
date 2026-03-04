@@ -11,7 +11,7 @@ from routes.proxy import proxy_bp
 
 
 def create_app() -> Flask:
-    app = Flask(__name__, static_folder="public", static_url_path="")
+    app = Flask(__name__, static_folder="public/dist", static_url_path="")
     CORS(app)
 
     init_db()
@@ -22,7 +22,7 @@ def create_app() -> Flask:
     # Serve dashboard at root
     @app.route("/")
     def index():
-        return app.send_static_file("dashboard.html")
+        return app.send_static_file("index.html")
 
     return app
 

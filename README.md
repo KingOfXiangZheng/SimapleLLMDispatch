@@ -47,6 +47,10 @@ docker run -d -p 3000:3000 -v ./data:/app/data simaple-llm-dispatch
 ### 方式二：直接运行
 
 ```bash
+cd public
+npm install 
+npm run build
+
 pip install -r requirements.txt
 python app.py
 ```

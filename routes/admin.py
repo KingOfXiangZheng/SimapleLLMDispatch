@@ -42,6 +42,17 @@ def list_providers():
     return jsonify(ProviderDAO.get_all())
 
 
+@admin_bp.route("/models", methods=["GET"])
+def list_all_models():
+    """Return all unique model names from all providers (union of models field)."""
+    providers = ProviderDAO.get_all()
+    model_set = set()
+    for p in providers:
+        for m in (p.get("models") or []):
+            model_set.add(m)
+    return jsonify(sorted(model_set))
+
+
 @admin_bp.route("/providers", methods=["POST"])
 def create_provider():
     try:
