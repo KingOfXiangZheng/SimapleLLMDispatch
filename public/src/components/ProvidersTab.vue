@@ -132,7 +132,7 @@
                         :disabled="p._fetching"
                         style="font-size:0.72rem"
                       >
-                        �️ {{ p._fetching ? '拉取中...' : '拉取模型' }}
+                        🔄 {{ p._fetching ? '拉取中...' : '拉取模型' }}
                       </button>
                       <button 
                         class="btn btn-ghost btn-sm"
@@ -218,7 +218,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['add', 'edit', 'delete', 'fetchModels', 'refreshQuota', 'toggleQuota', 'loadPage'])
+const $emit = defineEmits(['add', 'edit', 'delete', 'fetchModels', 'refreshQuota', 'toggleQuota', 'loadPage', 'toggleQuotaDetail'])
 
 function effectiveModels(p) {
   const sm = p.selected_models
@@ -259,7 +259,7 @@ function pageRange(paging) {
 const pageNums = computed(() => pageRange(props.paging))
 
 function toggleQuotaDetail(p) {
-  // Handled by parent
+  $emit('toggleQuotaDetail', p)
 }
 </script>
 

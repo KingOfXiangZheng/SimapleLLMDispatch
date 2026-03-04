@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 export function useApi() {
   async function api(url, opts = {}) {
-    const res = await fetch(url, {
+    const res = await fetch("http://127.0.0.1:3000"+url, {
       headers: { 'Content-Type': 'application/json' },
       ...opts,
       body: opts.body ? JSON.stringify(opts.body) : undefined

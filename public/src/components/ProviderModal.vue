@@ -6,25 +6,25 @@
       <div class="form-row">
         <div class="form-group">
           <label>名称</label>
-          <input v-model="form.name" placeholder="e.g. DeepSeek">
+          <input v-model="initialForm.name" placeholder="e.g. DeepSeek">
         </div>
         <div class="form-group">
           <label>权重</label>
-          <input v-model.number="form.weight" type="number" min="1">
+          <input v-model.number="initialForm.weight" type="number" min="1">
         </div>
       </div>
       
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label>Base URL</label>
-          <input v-model="form.base_url" placeholder="https://api.deepseek.com/v1">
+          <input v-model="initialForm.base_url" placeholder="https://api.deepseek.com/v1">
         </div>
       </div>
       
       <div class="form-row">
         <div class="form-group">
           <label>API Key</label>
-          <input v-model="form.api_key" type="password" placeholder="sk-...">
+          <input v-model="initialForm.api_key" type="password" placeholder="sk-...">
         </div>
       </div>
       
@@ -47,26 +47,26 @@
       <div class="form-row">
         <div class="form-group">
           <label>每日请求 (RPD)，0=不限</label>
-          <input v-model.number="form.max_requests_per_day" type="number" min="0">
+          <input v-model.number="initialForm.max_requests_per_day" type="number" min="0">
         </div>
         <div class="form-group">
           <label>每分钟请求 (RPM)，0=不限</label>
-          <input v-model.number="form.max_rpm" type="number" min="0">
+          <input v-model.number="initialForm.max_rpm" type="number" min="0">
         </div>
         <div class="form-group">
           <label>每分钟 Token (TPM)，0=不限</label>
-          <input v-model.number="form.max_tpm" type="number" min="0">
+          <input v-model.number="initialForm.max_tpm" type="number" min="0">
         </div>
       </div>
       
       <div class="form-row">
         <div class="form-group">
           <label>总调用次数，0=不限</label>
-          <input v-model.number="form.max_requests_total" type="number" min="0">
+          <input v-model.number="initialForm.max_requests_total" type="number" min="0">
         </div>
         <div class="form-group">
           <label>总 Token，0=不限</label>
-          <input v-model.number="form.max_tokens_total" type="number" min="0">
+          <input v-model.number="initialForm.max_tokens_total" type="number" min="0">
         </div>
       </div>
       
@@ -74,19 +74,19 @@
         <div class="form-group">
           <label>模型（逗号分隔，或保存后使用"拉取模型"自动获取）</label>
           <div style="display:flex;gap:0.5rem">
-            <input v-model="form.models_text" placeholder="gpt-4, gpt-3.5-turbo" style="flex:1">
+            <input v-model="initialForm.models_text" placeholder="gpt-4, gpt-3.5-turbo" style="flex:1">
             <button 
               class="btn btn-ghost" 
               @click="$emit('fetchModelsInModal')"
-              :disabled="form._fetching"
+              :disabled="initialForm._fetching"
             >
-              {{ form._fetching ? '...' : '拉取模型' }}
+              {{ initialForm._fetching ? '...' : '拉取模型' }}
             </button>
           </div>
         </div>
       </div>
       
-      <div v-if="form.all_models.length" style="margin-top:0.75rem">
+      <div v-if="initialForm.all_models && initialForm.all_models.length" style="margin-top:0.75rem">
         <label style="font-size:0.8rem;color:var(--dim);font-weight:500">
           选择要启用的模型（可设置每模型限额，0=不限/继承）：
         </label>
@@ -95,7 +95,7 @@
           <button class="btn btn-ghost btn-sm" @click="selectNone">全不选</button>
           <div style="flex:1"></div>
           <input 
-            v-model="form.model_search" 
+            v-model="initialForm.model_search" 
             placeholder="搜索模型..."
             style="padding:0.3rem 0.6rem;font-size:0.75rem;width:150px"
           >
@@ -106,8 +106,8 @@
             :key="m"
             :style="{
               borderRadius: '8px',
-              border: form.selected_set.has(m) ? '1px solid var(--accent)' : '1px solid var(--border)',
-              background: form.selected_set.has(m) ? 'rgba(99,102,241,0.07)' : 'rgba(255,255,255,0.02)',
+              border: initialForm.selected_set.has(m) ? '1px solid var(--accent)' : '1px solid var(--border)',
+              background: initialForm.selected_set.has(m) ? 'rgba(99,102,241,0.07)' : 'rgba(255,255,255,0.02)',
               overflow: 'visible',
               transition: 'all 0.2s'
             }"
@@ -115,7 +115,7 @@
             <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;" @click="toggleModel(m)">
               <input 
                 type="checkbox" 
-                :checked="form.selected_set.has(m)"
+                :checked="initialForm.selected_set.has(m)"
                 @click.stop="toggleModel(m)"
                 style="width:15px;height:15px;flex-shrink:0;cursor:pointer;margin:0;padding:0;accent-color:var(--accent)"
               >
@@ -126,7 +126,7 @@
                 {{ m }}
               </span>
             </div>
-            <div v-if="form.selected_set.has(m)"
+            <div v-if="initialForm.selected_set.has(m)"
                 style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:rgba(0,0,0,0.15)"
             >
               <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
@@ -134,8 +134,8 @@
                 <input 
                   type="number" 
                   min="0" 
-                  :value="form.model_rpd[m] || 0"
-                  @input="form.model_rpd[m] = parseInt($event.target.value) || 0"
+                  :value="initialForm.model_rpd[m] || 0"
+                  @input="initialForm.model_rpd[m] = parseInt($event.target.value) || 0"
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
@@ -144,8 +144,8 @@
                 <input 
                   type="number" 
                   min="0" 
-                  :value="form.model_rpm[m] || 0"
-                  @input="form.model_rpm[m] = parseInt($event.target.value) || 0"
+                  :value="initialForm.model_rpm[m] || 0"
+                  @input="initialForm.model_rpm[m] = parseInt($event.target.value) || 0"
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
@@ -154,8 +154,8 @@
                 <input 
                   type="number" 
                   min="0" 
-                  :value="form.model_tpm[m] || 0"
-                  @input="form.model_tpm[m] = parseInt($event.target.value) || 0"
+                  :value="initialForm.model_tpm[m] || 0"
+                  @input="initialForm.model_tpm[m] = parseInt($event.target.value) || 0"
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
@@ -164,8 +164,8 @@
                 <input 
                   type="number" 
                   min="0" 
-                  :value="form.model_total_requests[m] || 0"
-                  @input="form.model_total_requests[m] = parseInt($event.target.value) || 0"
+                  :value="initialForm.model_total_requests[m] || 0"
+                  @input="initialForm.model_total_requests[m] = parseInt($event.target.value) || 0"
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
@@ -174,8 +174,8 @@
                 <input 
                   type="number" 
                   min="0" 
-                  :value="form.model_total_tokens[m] || 0"
-                  @input="form.model_total_tokens[m] = parseInt($event.target.value) || 0"
+                  :value="initialForm.model_total_tokens[m] || 0"
+                  @input="initialForm.model_total_tokens[m] = parseInt($event.target.value) || 0"
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
@@ -186,7 +186,7 @@
       
       <div v-if="editingProvider" style="margin-top:1rem">
         <label class="model-check" style="font-size:0.85rem">
-          <input type="checkbox" v-model="form.is_active"> 启用此供应商
+          <input type="checkbox" v-model="initialForm.is_active"> 启用此供应商
         </label>
       </div>
       
@@ -199,7 +199,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, watch } from 'vue'
+import { computed } from 'vue'
 
 const props = defineProps({
   show: Boolean,
@@ -220,75 +220,46 @@ const ratePresets = [
   { label: '不限制', rpd: 0, rpm: 0, tpm: 0 },
 ]
 
-const form = reactive({
-  name: '',
-  base_url: '',
-  api_key: '',
-  weight: 1,
-  max_requests_per_day: 1000,
-  max_rpm: 0,
-  max_tpm: 0,
-  max_requests_total: 0,
-  max_tokens_total: 0,
-  models_text: '',
-  all_models: [],
-  model_search: '',
-  selected_set: new Set(),
-  model_rpd: {},
-  model_rpm: {},
-  model_tpm: {},
-  model_total_requests: {},
-  model_total_tokens: {},
-  is_active: true,
-  _fetching: false
-})
-
 const filteredAndSortedModels = computed(() => {
-  let list = form.all_models.filter(m =>
-    m.toLowerCase().includes(form.model_search.toLowerCase())
+  if (!props.initialForm || !props.initialForm.all_models) return []
+  let list = props.initialForm.all_models.filter(m =>
+    m.toLowerCase().includes((props.initialForm.model_search || '').toLowerCase())
   )
   return list.sort((a, b) => {
-    const aSel = form.selected_set.has(a) ? 1 : 0
-    const bSel = form.selected_set.has(b) ? 1 : 0
+    const aSel = props.initialForm.selected_set.has(a) ? 1 : 0
+    const bSel = props.initialForm.selected_set.has(b) ? 1 : 0
     if (aSel !== bSel) return bSel - aSel
     return a.localeCompare(b)
   })
 })
 
 function applyPreset(preset) {
-  form.max_requests_per_day = preset.rpd
-  form.max_rpm = preset.rpm
-  form.max_tpm = preset.tpm
+  if (!props.initialForm) return
+  props.initialForm.max_requests_per_day = preset.rpd
+  props.initialForm.max_rpm = preset.rpm
+  props.initialForm.max_tpm = preset.tpm
 }
 
 function toggleModel(m) {
-  if (form.selected_set.has(m)) {
-    form.selected_set.delete(m)
+  if (!props.initialForm) return
+  if (props.initialForm.selected_set.has(m)) {
+    props.initialForm.selected_set.delete(m)
   } else {
-    form.selected_set.add(m)
+    props.initialForm.selected_set.add(m)
   }
-  form.selected_set = new Set(form.selected_set)
+  // Trigger reactivity by reassigning
+  props.initialForm.selected_set = new Set(props.initialForm.selected_set)
 }
 
 function selectAll() {
-  form.selected_set = new Set(form.all_models)
+  if (!props.initialForm || !props.initialForm.all_models) return
+  props.initialForm.selected_set = new Set(props.initialForm.all_models)
 }
 
 function selectNone() {
-  form.selected_set = new Set()
+  if (!props.initialForm) return
+  props.initialForm.selected_set = new Set()
 }
-
-// Watch for initialForm changes to update form
-watch(() => props.initialForm, (newForm) => {
-  if (newForm) {
-    Object.assign(form, newForm)
-    if (newForm.selected_set instanceof Set) {
-      form.selected_set = new Set(newForm.selected_set)
-    }
-  }
-}, { immediate: true, deep: true })
-
-defineExpose({ form, ratePresets, applyPreset, toggleModel, selectAll, selectNone })
 </script>
 
 <style scoped>

@@ -16,6 +16,7 @@
           @fetchModels="fetchModels"
           @refreshQuota="refreshQuotaDetail"
           @loadPage="loadProviders"
+          @toggleQuotaDetail="toggleQuotaDetail"
         />
       </template>
       
@@ -359,7 +360,6 @@ async function fetchModelsInModal() {
   pForm._fetching = true
   try {
     const fetchedModels = await fetchModelsFromApi(pForm.base_url, pForm.api_key)
-    const prevAll = new Set(pForm.all_models)
     pForm.all_models = fetchedModels
     const fetchedSet = new Set(fetchedModels)
     pForm.selected_set = new Set([...pForm.selected_set].filter(m => fetchedSet.has(m)))
@@ -408,6 +408,9 @@ watch([() => pForm.base_url, () => pForm.api_key], ([url, key]) => {
 async function openGroupModal(g = null) {
   editingGroup.value = g
   gForm.model_search = ''
+  gForm._loading = true
+  gForm.allModels = []
+  
   if (g) {
     gForm.name = g.name
     gForm.alias = g.alias
@@ -419,10 +422,8 @@ async function openGroupModal(g = null) {
     gForm.strategy = 'weighted_random'
     gForm.target_set = new Set()
   }
-  showGroupModal.value = true
   
-  // Fetch fresh model list from backend
-  gForm._loading = true
+  // Fetch fresh model list from backend first
   try {
     gForm.allModels = await apiLoadAllModels()
   } catch (e) {
@@ -430,6 +431,9 @@ async function openGroupModal(g = null) {
   } finally {
     gForm._loading = false
   }
+  
+  // Open modal after models are loaded
+  showGroupModal.value = true
 }
 
 async function saveGroup() {
