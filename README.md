@@ -13,6 +13,7 @@
 - **模型分组** — 将多个模型聚合为一个别名，统一对外暴露
 - **可视化 Dashboard** — 暗色主题管理面板，实时查看配额使用情况
 - **零外部依赖** — 仅需 Flask + SQLite，开箱即用
+- **Docker 支持** — 提供 Dockerfile 和 docker-compose.yml，一键部署
 
 ## 截图
 
@@ -30,15 +31,23 @@
 
 ## 快速开始
 
-### 安装依赖
+### 方式一：Docker 部署（推荐）
+
+```bash
+# 使用 docker compose 一键启动
+docker compose up -d
+
+# 或者手动构建运行
+docker build -t simaple-llm-dispatch .
+docker run -d -p 3000:3000 -v ./data:/app/data simaple-llm-dispatch
+```
+
+数据库文件持久化在宿主机 `./data/` 目录下，容器重建不会丢失数据。
+
+### 方式二：直接运行
 
 ```bash
 pip install -r requirements.txt
-```
-
-### 启动服务
-
-```bash
 python app.py
 ```
 
@@ -103,6 +112,8 @@ print(response.choices[0].message.content)
 │   └── proxy.py        # OpenAI 兼容代理（chat completions / models）
 ├── public/
 │   └── dashboard.html  # Vue 3 单文件 Dashboard
+├── Dockerfile          # Docker 镜像构建
+├── docker-compose.yml  # Docker Compose 编排
 ├── pic/                # 截图
 └── requirements.txt    # Python 依赖
 ```

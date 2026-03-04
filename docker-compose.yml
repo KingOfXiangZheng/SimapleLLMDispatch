@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  llm-dispatch:
+    build: .
+    container_name: simaple-llm-dispatch
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=3000
+      - UPSTREAM_TIMEOUT=30
+    restart: unless-stopped
