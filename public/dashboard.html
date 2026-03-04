@@ -1,157 +1,932 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM Dispatcher Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <title>SimapleLLMDispatch Dashboard</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <style>
         :root {
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --accent: #38bdf8;
-            --text: #f8fafc;
-            --text-dim: #94a3b8;
+            --bg: #0a0f1a; --surface: #111827; --card: #1a2236; --border: #253049;
+            --accent: #6366f1; --accent-light: #818cf8; --accent-glow: rgba(99,102,241,0.15);
+            --green: #34d399; --red: #f87171; --yellow: #fbbf24; --cyan: #22d3ee;
+            --text: #f1f5f9; --dim: #94a3b8; --muted: #64748b;
+            --radius: 12px; --radius-sm: 8px;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 2rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text); line-height: 1.5;
         }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
+        .app { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 240px; background: var(--surface); border-right: 1px solid var(--border);
+            padding: 1.75rem 0; flex-shrink: 0; position: fixed; top: 0; left: 0;
+            height: 100vh; display: flex; flex-direction: column;
         }
-        h1 { color: var(--accent); margin-bottom: 2rem; }
+        .sidebar-brand {
+            padding: 0 1.5rem 1.75rem; display: flex; align-items: center; gap: 0.6rem;
+            border-bottom: 1px solid var(--border); margin-bottom: 0.75rem;
+        }
+        .sidebar-brand .icon { font-size: 1.5rem; }
+        .sidebar-brand .title { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+        .sidebar-brand .sub { font-size: 0.7rem; color: var(--muted); }
+        .nav-item {
+            display: flex; align-items: center; gap: 0.65rem; padding: 0.65rem 1.5rem;
+            color: var(--dim); text-decoration: none; font-size: 0.875rem; cursor: pointer;
+            transition: all 0.15s; border-left: 3px solid transparent; margin: 0.1rem 0;
+        }
+        .nav-item:hover { color: var(--text); background: rgba(99,102,241,0.06); }
+        .nav-item.active { color: var(--accent-light); background: var(--accent-glow); border-left-color: var(--accent); font-weight: 600; }
+        .nav-item .emoji { font-size: 1.1rem; width: 1.5rem; text-align: center; }
+        .sidebar-footer { margin-top: auto; padding: 1rem 1.5rem; border-top: 1px solid var(--border); }
+        .sidebar-footer .endpoint {
+            font-size: 0.75rem; color: var(--muted); background: var(--bg); padding: 0.5rem 0.65rem;
+            border-radius: var(--radius-sm); font-family: 'SF Mono', 'Fira Code', monospace; word-break: break-all;
+        }
+        .sidebar-footer .endpoint-label { font-size: 0.7rem; color: var(--muted); margin-bottom: 0.35rem; }
+        .main { flex: 1; margin-left: 240px; padding: 2rem 2.5rem; min-height: 100vh; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.75rem; }
+        .page-title { font-size: 1.4rem; font-weight: 700; }
+        .page-desc { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+        .stat-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 1.15rem 1.25rem; position: relative; overflow: hidden;
+        }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+        .stat-card:nth-child(1)::before { background: var(--accent); }
+        .stat-card:nth-child(2)::before { background: var(--green); }
+        .stat-card:nth-child(3)::before { background: var(--cyan); }
+        .stat-card:nth-child(4)::before { background: var(--yellow); }
+        .stat-card .label { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+        .stat-card .value { font-size: 1.75rem; font-weight: 700; margin-top: 0.3rem; letter-spacing: -0.02em; }
         .card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            background: var(--card); border-radius: var(--radius); padding: 1.5rem;
+            margin-bottom: 1.25rem; border: 1px solid var(--border);
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+        .card-title { font-size: 0.9rem; color: var(--dim); font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        thead th {
+            text-align: left; padding: 0.65rem 0.85rem; color: var(--muted); font-weight: 600;
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
+            border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.15);
         }
-        th, td {
-            text-align: left;
-            padding: 0.75rem;
-            border-bottom: 1px solid #334155;
-        }
-        th { color: var(--text-dim); font-weight: 600; }
+        thead th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+        thead th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+        td { padding: 0.7rem 0.85rem; border-bottom: 1px solid rgba(37,48,73,0.5); vertical-align: middle; }
+        tbody tr { transition: background 0.1s; }
+        tbody tr:hover { background: rgba(99,102,241,0.04); }
         .badge {
-            background: rgba(56, 189, 248, 0.1);
-            color: var(--accent);
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            margin-right: 0.3rem;
+            display: inline-block; padding: 0.2rem 0.55rem; border-radius: 5px;
+            font-size: 0.73rem; margin: 0.1rem 0.15rem; font-weight: 500;
         }
-        button {
-            background-color: var(--accent);
-            color: var(--bg);
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
+        .badge-accent { background: var(--accent-glow); color: var(--accent-light); }
+        .badge-green { background: rgba(52,211,153,0.12); color: var(--green); }
+        .badge-red { background: rgba(248,113,113,0.12); color: var(--red); }
+        .badge-yellow { background: rgba(251,191,36,0.12); color: var(--yellow); }
+        .badge-cyan { background: rgba(34,211,238,0.12); color: var(--cyan); }
+        .btn {
+            padding: 0.5rem 1rem; border-radius: var(--radius-sm); border: none; font-size: 0.82rem;
+            font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex;
+            align-items: center; gap: 0.35rem; white-space: nowrap;
         }
-        button:hover { opacity: 0.9; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; color: var(--text-dim); }
-        input {
-            width: 100%;
-            padding: 0.5rem;
-            border-radius: 6px;
-            border: 1px solid #334155;
-            background: #0f172a;
-            color: white;
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-light); box-shadow: 0 0 20px rgba(99,102,241,0.3); }
+        .btn-danger { background: rgba(248,113,113,0.12); color: var(--red); }
+        .btn-danger:hover { background: rgba(248,113,113,0.22); }
+        .btn-ghost { background: rgba(148,163,184,0.08); color: var(--dim); }
+        .btn-ghost:hover { background: rgba(148,163,184,0.16); color: var(--text); }
+        .btn-sm { padding: 0.32rem 0.65rem; font-size: 0.75rem; }
+        .actions { display: flex; gap: 0.35rem; flex-wrap: nowrap; }
+        .form-row { display: flex; gap: 0.85rem; margin-bottom: 0.85rem; flex-wrap: wrap; }
+        .form-group { display: flex; flex-direction: column; flex: 1; min-width: 180px; }
+        .form-group label { font-size: 0.78rem; color: var(--dim); margin-bottom: 0.35rem; font-weight: 500; }
+        input, select {
+            padding: 0.55rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border);
+            background: var(--bg); color: var(--text); font-size: 0.85rem; outline: none; transition: border-color 0.15s;
         }
+        input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        select { cursor: pointer; }
+        .model-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+        .model-check {
+            display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;
+            padding: 0.25rem 0.5rem; border-radius: 5px; background: rgba(0,0,0,0.2);
+            cursor: pointer; transition: background 0.1s;
+        }
+        .model-check:hover { background: rgba(99,102,241,0.08); }
+        .model-check input[type="checkbox"] { width: auto; accent-color: var(--accent); cursor: pointer; }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center; z-index: 100;
+        }
+        .modal {
+            background: var(--surface); border-radius: var(--radius); padding: 1.75rem;
+            width: 580px; max-width: 95vw; max-height: 85vh; overflow-y: auto;
+            border: 1px solid var(--border); box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+        }
+        .modal h3 { margin-bottom: 1.25rem; font-size: 1.1rem; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-sm); font-size: 0.85rem; z-index: 200;
+            animation: slideUp 0.25s ease-out; font-weight: 500;
+        }
+        .toast-success { background: rgba(52,211,153,0.15); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+        .toast-error { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .quota-bar { display: flex; align-items: center; gap: 0.5rem; }
+        .quota-track { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; min-width: 60px; }
+        .quota-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .quota-text { font-size: 0.78rem; color: var(--dim); white-space: nowrap; }
+        .pagination {
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border);
+        }
+        .pagination .info { font-size: 0.78rem; color: var(--muted); }
+        .page-btn {
+            padding: 0.3rem 0.7rem; border-radius: var(--radius-sm); border: 1px solid var(--border);
+            background: var(--bg); color: var(--dim); font-size: 0.78rem; cursor: pointer; transition: all 0.15s;
+        }
+        .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+        .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>LLM Dispatcher Control Panel</h1>
-
-        <div class="card">
-            <h2>Add Provider</h2>
-            <div id="provider-form">
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" id="p-name" placeholder="e.g. DeepSeek">
+<div id="app">
+    <div class="app">
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                <div>
+                    <span class="icon">⚡</span>
+                    <span class="title">LLM Dispatch</span>
+                    <div class="sub">智能调度中心</div>
                 </div>
-                <div class="form-group">
-                    <label>Base URL</label>
-                    <input type="text" id="p-url" placeholder="https://api.deepseek.com">
-                </div>
-                <div class="form-group">
-                    <label>API Key</label>
-                    <input type="password" id="p-key">
-                </div>
-                <div class="form-group">
-                    <label>Models (comma separated)</label>
-                    <input type="text" id="p-models" placeholder="deepseek-chat, deepseek-reasoner">
-                </div>
-                <button onclick="addProvider()">Save Provider</button>
             </div>
-        </div>
+            <a class="nav-item" :class="{active: tab==='providers'}" @click="tab='providers'">
+                <span class="emoji">📡</span> 供应商管理
+            </a>
+            <a class="nav-item" :class="{active: tab==='groups'}" @click="tab='groups'">
+                <span class="emoji">📦</span> 模型分组
+            </a>
+            <a class="nav-item" :class="{active: tab==='logs'}" @click="tab='logs'">
+                <span class="emoji">📊</span> 调用日志
+            </a>
+            <div class="sidebar-footer">
+                <div class="endpoint-label">统一入口</div>
+                <div class="endpoint">http://localhost:3000/v1</div>
+            </div>
+        </nav>
 
-        <div class="card">
-            <h2>Active Providers</h2>
-            <table id="provider-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>URL</th>
-                        <th>Models</th>
-                        <th>Quota</th>
-                        <th>Weight</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
+        <div class="main">
+            <!-- ==================== Providers Tab ==================== -->
+            <template v-if="tab==='providers'">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">供应商管理</div>
+                        <div class="page-desc">管理 LLM API 供应商，配置密钥、模型和配额</div>
+                    </div>
+                    <button class="btn btn-primary" @click="openProviderModal()">+ 添加供应商</button>
+                </div>
 
-    <script>
-        async function fetchProviders() {
-            const res = await fetch('/admin/providers');
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="label">供应商总数</div>
+                        <div class="value">{{ providers.length }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">活跃</div>
+                        <div class="value" style="color:var(--green)">{{ providers.filter(p=>p.is_active).length }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">今日总请求</div>
+                        <div class="value" style="color:var(--cyan)">{{ providers.reduce((s,p)=>s+p.current_requests_today,0) }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">可用模型</div>
+                        <div class="value" style="color:var(--yellow)">{{ allModels.length }}</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>名称</th>
+                                <th>Base URL</th>
+                                <th>已选模型</th>
+                                <th>限额</th>
+                                <th>权重</th>
+                                <th>状态</th>
+                                <th style="text-align:right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template v-for="p in providers" :key="p.id">
+                            <tr>
+                                <td style="font-weight:600">{{ p.name }}</td>
+                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)" :title="p.base_url">{{ p.base_url }}</td>
+                                <td>
+                                    <span v-for="m in effectiveModelsWithRPD(p).slice(0,3)" class="badge badge-accent" style="margin-right:0.2rem">
+                                        {{ m.model }}<template v-if="m.rpd"> · {{ m.rpd }}/d</template><template v-if="m.rpm"> · {{ m.rpm }}/m</template>
+                                    </span>
+                                    <span class="badge badge-yellow" v-if="effectiveModelsWithRPD(p).length > 3">+{{ effectiveModelsWithRPD(p).length - 3 }}</span>
+                                </td>
+                                <td style="min-width:200px;cursor:pointer" @click="toggleQuotaDetail(p)">
+                                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem">
+                                        <span style="font-size:0.7rem;color:var(--muted);width:28px">RPD</span>
+                                        <div class="quota-track" style="flex:1">
+                                            <div class="quota-fill" :style="{
+                                                width: p.max_requests_per_day ? Math.min(100, p.current_requests_today / p.max_requests_per_day * 100) + '%' : '0%',
+                                                background: p.max_requests_per_day && (p.current_requests_today / p.max_requests_per_day) > 0.8 ? 'var(--red)' : 'var(--accent)'
+                                            }"></div>
+                                        </div>
+                                        <span class="quota-text" style="min-width:55px;text-align:right">{{ p.current_requests_today }}/{{ p.max_requests_per_day || '∞' }}</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem">
+                                        <span style="font-size:0.7rem;color:var(--muted);width:28px">RPM</span>
+                                        <div class="quota-track" style="flex:1">
+                                            <div class="quota-fill" :style="{
+                                                width: p.max_rpm && quotaDetail[p.id] ? Math.min(100, quotaDetail[p.id].provider_rpm_current / p.max_rpm * 100) + '%' : '0%',
+                                                background: p.max_rpm && quotaDetail[p.id] && (quotaDetail[p.id].provider_rpm_current / p.max_rpm) > 0.8 ? 'var(--red)' : 'var(--cyan)'
+                                            }"></div>
+                                        </div>
+                                        <span class="quota-text" style="min-width:55px;text-align:right">{{ quotaDetail[p.id] ? quotaDetail[p.id].provider_rpm_current : '-' }}/{{ p.max_rpm || '∞' }}</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem">
+                                        <span style="font-size:0.7rem;color:var(--muted);width:28px">TPM</span>
+                                        <div class="quota-track" style="flex:1">
+                                            <div class="quota-fill" :style="{
+                                                width: p.max_tpm && quotaDetail[p.id] ? Math.min(100, quotaDetail[p.id].provider_tpm_current / p.max_tpm * 100) + '%' : '0%',
+                                                background: p.max_tpm && quotaDetail[p.id] && (quotaDetail[p.id].provider_tpm_current / p.max_tpm) > 0.8 ? 'var(--red)' : 'var(--yellow)'
+                                            }"></div>
+                                        </div>
+                                        <span class="quota-text" style="min-width:55px;text-align:right">{{ quotaDetail[p.id] ? quotaDetail[p.id].provider_tpm_current.toLocaleString() : '-' }}/{{ p.max_tpm ? p.max_tpm.toLocaleString() : '∞' }}</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem">
+                                        <span style="font-size:0.7rem;color:var(--muted);width:28px">总调</span>
+                                        <div class="quota-track" style="flex:1">
+                                            <div class="quota-fill" :style="{
+                                                width: p.max_requests_total && quotaDetail[p.id] ? Math.min(100, quotaDetail[p.id].provider_total_requests_current / p.max_requests_total * 100) + '%' : '0%',
+                                                background: p.max_requests_total && quotaDetail[p.id] && (quotaDetail[p.id].provider_total_requests_current / p.max_requests_total) > 0.8 ? 'var(--red)' : 'var(--green)'
+                                            }"></div>
+                                        </div>
+                                        <span class="quota-text" style="min-width:55px;text-align:right">{{ quotaDetail[p.id] ? quotaDetail[p.id].provider_total_requests_current.toLocaleString() : '-' }}/{{ p.max_requests_total ? p.max_requests_total.toLocaleString() : '∞' }}</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.4rem">
+                                        <span style="font-size:0.7rem;color:var(--muted);width:28px">总T</span>
+                                        <div class="quota-track" style="flex:1">
+                                            <div class="quota-fill" :style="{
+                                                width: p.max_tokens_total && quotaDetail[p.id] ? Math.min(100, quotaDetail[p.id].provider_total_tokens_current / p.max_tokens_total * 100) + '%' : '0%',
+                                                background: p.max_tokens_total && quotaDetail[p.id] && (quotaDetail[p.id].provider_total_tokens_current / p.max_tokens_total) > 0.8 ? 'var(--red)' : 'var(--accent-light)'
+                                            }"></div>
+                                        </div>
+                                        <span class="quota-text" style="min-width:55px;text-align:right">{{ quotaDetail[p.id] ? quotaDetail[p.id].provider_total_tokens_current.toLocaleString() : '-' }}/{{ p.max_tokens_total ? p.max_tokens_total.toLocaleString() : '∞' }}</span>
+                                    </div>
+                                    <div style="text-align:right;margin-top:0.2rem">
+                                        <span style="font-size:0.68rem;color:var(--muted)">{{ expandedQuota === p.id ? '▲ 收起' : '▼ 详情' }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ p.weight }}</td>
+                                <td><span class="badge" :class="p.is_active ? 'badge-green' : 'badge-red'">{{ p.is_active ? '活跃' : '停用' }}</span></td>
+                                <td style="text-align:right">
+                                    <div class="actions" style="justify-content:flex-end">
+                                        <button class="btn btn-ghost btn-sm" @click="fetchModels(p)" :disabled="p._fetching">{{ p._fetching ? '...' : '拉取模型' }}</button>
+                                        <button class="btn btn-ghost btn-sm" @click="openProviderModal(p)">编辑</button>
+                                        <button class="btn btn-danger btn-sm" @click="deleteProvider(p)">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- Expanded quota detail row -->
+                            <tr v-if="expandedQuota === p.id" style="background:rgba(99,102,241,0.03)">
+                                <td colspan="7" style="padding:0.75rem 1.25rem">
+                                    <div v-if="!quotaDetail[p.id]" style="color:var(--muted);font-size:0.82rem">加载中...</div>
+                                    <div v-else>
+                                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+                                            <span style="font-size:0.78rem;color:var(--muted);font-weight:600">模型限额使用情况</span>
+                                            <button class="btn btn-ghost btn-sm" @click.stop="refreshQuotaDetail(p)" style="font-size:0.72rem">🔄 刷新</button>
+                                        </div>
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:0.5rem">
+                                            <div v-for="q in quotaDetail[p.id].models" :key="q.model" style="padding:0.5rem 0.65rem;border-radius:6px;background:rgba(0,0,0,0.15)">
+                                                <div style="font-size:0.8rem;margin-bottom:0.35rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="q.model">{{ q.model }}</div>
+                                                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+                                                    <span style="font-size:0.7rem;color:var(--muted);width:30px">RPD</span>
+                                                    <div class="quota-bar" style="flex:1">
+                                                        <div class="quota-track">
+                                                            <div class="quota-fill" :style="{
+                                                                width: q.rpd ? Math.min(100, q.used_today / q.rpd * 100) + '%' : '0%',
+                                                                background: q.rpd && (q.used_today / q.rpd) > 0.8 ? 'var(--red)' : 'var(--green)'
+                                                            }"></div>
+                                                        </div>
+                                                    </div>
+                                                    <span style="font-size:0.73rem;color:var(--dim);white-space:nowrap;min-width:50px;text-align:right">{{ q.used_today }}/{{ q.rpd || '∞' }}</span>
+                                                </div>
+                                                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+                                                    <span style="font-size:0.7rem;color:var(--muted);width:30px">RPM</span>
+                                                    <div class="quota-bar" style="flex:1">
+                                                        <div class="quota-track">
+                                                            <div class="quota-fill" :style="{
+                                                                width: q.rpm ? Math.min(100, q.rpm_current / q.rpm * 100) + '%' : '0%',
+                                                                background: q.rpm && (q.rpm_current / q.rpm) > 0.8 ? 'var(--red)' : 'var(--cyan)'
+                                                            }"></div>
+                                                        </div>
+                                                    </div>
+                                                    <span style="font-size:0.73rem;color:var(--dim);white-space:nowrap;min-width:50px;text-align:right">{{ q.rpm_current }}/{{ q.rpm || '∞' }}</span>
+                                                </div>
+                                                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+                                                    <span style="font-size:0.7rem;color:var(--muted);width:30px">TPM</span>
+                                                    <div class="quota-bar" style="flex:1">
+                                                        <div class="quota-track">
+                                                            <div class="quota-fill" :style="{
+                                                                width: q.tpm ? Math.min(100, q.tpm_current / q.tpm * 100) + '%' : '0%',
+                                                                background: q.tpm && (q.tpm_current / q.tpm) > 0.8 ? 'var(--red)' : 'var(--yellow)'
+                                                            }"></div>
+                                                        </div>
+                                                    </div>
+                                                    <span style="font-size:0.73rem;color:var(--dim);white-space:nowrap;min-width:50px;text-align:right">{{ (q.tpm_current||0).toLocaleString() }}/{{ q.tpm ? q.tpm.toLocaleString() : '∞' }}</span>
+                                                </div>
+                                                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+                                                    <span style="font-size:0.7rem;color:var(--muted);width:30px">总调</span>
+                                                    <div class="quota-bar" style="flex:1">
+                                                        <div class="quota-track">
+                                                            <div class="quota-fill" :style="{
+                                                                width: q.total_requests ? Math.min(100, q.total_requests_current / q.total_requests * 100) + '%' : '0%',
+                                                                background: q.total_requests && (q.total_requests_current / q.total_requests) > 0.8 ? 'var(--red)' : 'var(--green)'
+                                                            }"></div>
+                                                        </div>
+                                                    </div>
+                                                    <span style="font-size:0.73rem;color:var(--dim);white-space:nowrap;min-width:50px;text-align:right">{{ (q.total_requests_current||0).toLocaleString() }}/{{ q.total_requests ? q.total_requests.toLocaleString() : '∞' }}</span>
+                                                </div>
+                                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                                    <span style="font-size:0.7rem;color:var(--muted);width:30px">总T</span>
+                                                    <div class="quota-bar" style="flex:1">
+                                                        <div class="quota-track">
+                                                            <div class="quota-fill" :style="{
+                                                                width: q.total_tokens ? Math.min(100, q.total_tokens_current / q.total_tokens * 100) + '%' : '0%',
+                                                                background: q.total_tokens && (q.total_tokens_current / q.total_tokens) > 0.8 ? 'var(--red)' : 'var(--accent-light)'
+                                                            }"></div>
+                                                        </div>
+                                                    </div>
+                                                    <span style="font-size:0.73rem;color:var(--dim);white-space:nowrap;min-width:50px;text-align:right">{{ (q.total_tokens_current||0).toLocaleString() }}/{{ q.total_tokens ? q.total_tokens.toLocaleString() : '∞' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div v-if="!quotaDetail[p.id].models || !quotaDetail[p.id].models.length" style="font-size:0.8rem;color:var(--muted)">无已选模型</div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </template>
+                            <tr v-if="!providers.length"><td colspan="7" class="empty-row">暂无供应商，点击右上角按钮添加</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination" v-if="providerPaging.total_pages > 1">
+                        <button class="page-btn" :disabled="providerPaging.page <= 1" @click="loadProviders(1)">«</button>
+                        <button class="page-btn" :disabled="providerPaging.page <= 1" @click="loadProviders(providerPaging.page - 1)">‹</button>
+                        <template v-for="pg in providerPageNums" :key="pg">
+                            <button class="page-btn" :class="{active: pg === providerPaging.page}" @click="loadProviders(pg)">{{ pg }}</button>
+                        </template>
+                        <button class="page-btn" :disabled="providerPaging.page >= providerPaging.total_pages" @click="loadProviders(providerPaging.page + 1)">›</button>
+                        <button class="page-btn" :disabled="providerPaging.page >= providerPaging.total_pages" @click="loadProviders(providerPaging.total_pages)">»</button>
+                        <span class="info">共 {{ providerPaging.total }} 条</span>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ==================== Groups Tab ==================== -->
+            <template v-if="tab==='groups'">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">模型分组</div>
+                        <div class="page-desc">将多个模型聚合为一个别名，统一调度</div>
+                    </div>
+                    <button class="btn btn-primary" @click="openGroupModal()">+ 添加分组</button>
+                </div>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr><th>名称</th><th>别名</th><th>目标模型</th><th>调度策略</th><th style="text-align:right">操作</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="g in groups" :key="g.id">
+                                <td style="font-weight:600">{{ g.name }}</td>
+                                <td><span class="badge badge-cyan">{{ g.alias }}</span></td>
+                                <td><span class="badge badge-accent" v-for="m in g.target_models">{{ m }}</span></td>
+                                <td><span class="badge" :class="g.strategy==='round_robin' ? 'badge-yellow' : 'badge-green'">{{ g.strategy === 'round_robin' ? '轮询' : '加权随机' }}</span></td>
+                                <td style="text-align:right">
+                                    <div class="actions" style="justify-content:flex-end">
+                                        <button class="btn btn-ghost btn-sm" @click="openGroupModal(g)">编辑</button>
+                                        <button class="btn btn-danger btn-sm" @click="deleteGroup(g)">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="!groups.length"><td colspan="5" class="empty-row">暂无分组，点击右上角按钮添加</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <!-- ==================== Logs Tab ==================== -->
+            <template v-if="tab==='logs'">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">调用日志</div>
+                        <div class="page-desc">查看最近的 API 调用记录和 Token 消耗</div>
+                    </div>
+                    <button class="btn btn-ghost" @click="loadLogs(1)">🔄 刷新</button>
+                </div>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr><th>时间</th><th>供应商</th><th>模型</th><th>Prompt Tokens</th><th>Completion Tokens</th><th>Total</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="l in logs" :key="l.id">
+                                <td style="color:var(--dim);font-size:0.8rem">{{ l.timestamp }}</td>
+                                <td>{{ l.provider_name || 'N/A' }}</td>
+                                <td><span class="badge badge-accent">{{ l.model }}</span></td>
+                                <td>{{ (l.prompt_tokens||0).toLocaleString() }}</td>
+                                <td>{{ (l.completion_tokens||0).toLocaleString() }}</td>
+                                <td style="font-weight:600">{{ (l.total_tokens||0).toLocaleString() }}</td>
+                            </tr>
+                            <tr v-if="!logs.length"><td colspan="6" class="empty-row">暂无日志</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination" v-if="logPaging.total_pages > 1">
+                        <button class="page-btn" :disabled="logPaging.page <= 1" @click="loadLogs(1)">«</button>
+                        <button class="page-btn" :disabled="logPaging.page <= 1" @click="loadLogs(logPaging.page - 1)">‹</button>
+                        <template v-for="pg in logPageNums" :key="pg">
+                            <button class="page-btn" :class="{active: pg === logPaging.page}" @click="loadLogs(pg)">{{ pg }}</button>
+                        </template>
+                        <button class="page-btn" :disabled="logPaging.page >= logPaging.total_pages" @click="loadLogs(logPaging.page + 1)">›</button>
+                        <button class="page-btn" :disabled="logPaging.page >= logPaging.total_pages" @click="loadLogs(logPaging.total_pages)">»</button>
+                        <span class="info">共 {{ logPaging.total }} 条</span>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ==================== Provider Modal ==================== -->
+            <div class="modal-overlay" v-if="showProviderModal" @click.self="showProviderModal=false">
+                <div class="modal">
+                    <h3>{{ editingProvider ? '编辑供应商' : '添加供应商' }}</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>名称</label>
+                            <input v-model="pForm.name" placeholder="e.g. DeepSeek">
+                        </div>
+                        <div class="form-group">
+                            <label>权重</label>
+                            <input v-model.number="pForm.weight" type="number" min="1">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2">
+                            <label>Base URL</label>
+                            <input v-model="pForm.base_url" placeholder="https://api.deepseek.com/v1">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input v-model="pForm.api_key" type="password" placeholder="sk-...">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:0.85rem">
+                        <label style="font-size:0.78rem;color:var(--dim);font-weight:500;margin-bottom:0.5rem;display:block">速率限制预设</label>
+                        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+                            <button class="btn btn-ghost btn-sm" v-for="preset in ratePresets" :key="preset.label" @click="applyPreset(preset)">{{ preset.label }}</button>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>每日请求 (RPD)，0=不限</label>
+                            <input v-model.number="pForm.max_requests_per_day" type="number" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>每分钟请求 (RPM)，0=不限</label>
+                            <input v-model.number="pForm.max_rpm" type="number" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>每分钟 Token (TPM)，0=不限</label>
+                            <input v-model.number="pForm.max_tpm" type="number" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>总调用次数，0=不限</label>
+                            <input v-model.number="pForm.max_requests_total" type="number" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>总 Token，0=不限</label>
+                            <input v-model.number="pForm.max_tokens_total" type="number" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>模型（逗号分隔，或保存后使用"拉取模型"自动获取）</label>
+                            <input v-model="pForm.models_text" placeholder="gpt-4, gpt-3.5-turbo">
+                        </div>
+                    </div>
+                    <div v-if="pForm.all_models.length" style="margin-top:0.75rem">
+                        <label style="font-size:0.8rem;color:var(--dim);font-weight:500">选择要启用的模型（可设置每模型限额，0=不限/继承）：</label>
+                        <div style="margin:0.5rem 0;display:flex;gap:0.5rem">
+                            <button class="btn btn-ghost btn-sm" @click="pForm.selected_set = new Set(pForm.all_models)">全选</button>
+                            <button class="btn btn-ghost btn-sm" @click="pForm.selected_set = new Set()">全不选</button>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:0.5rem">
+                            <div v-for="m in pForm.all_models" :key="m" style="border-radius:8px;background:rgba(0,0,0,0.15);overflow:hidden">
+                                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.65rem">
+                                    <input type="checkbox" :checked="pForm.selected_set.has(m)" @change="toggleModel(m)" style="width:auto;accent-color:var(--accent);cursor:pointer">
+                                    <span style="font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="m">{{ m }}</span>
+                                </div>
+                                <div v-if="pForm.selected_set.has(m)" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;padding:0 0.65rem 0.5rem;border-top:1px solid var(--border);margin-top:0.1rem;padding-top:0.4rem">
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+                                        <label style="font-size:0.65rem;color:var(--muted)">RPD</label>
+                                        <input type="number" min="0" :value="pForm.model_rpd[m]||0" @input="pForm.model_rpd[m]=parseInt($event.target.value)||0" style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center">
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+                                        <label style="font-size:0.65rem;color:var(--muted)">RPM</label>
+                                        <input type="number" min="0" :value="pForm.model_rpm[m]||0" @input="pForm.model_rpm[m]=parseInt($event.target.value)||0" style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center">
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+                                        <label style="font-size:0.65rem;color:var(--muted)">TPM</label>
+                                        <input type="number" min="0" :value="pForm.model_tpm[m]||0" @input="pForm.model_tpm[m]=parseInt($event.target.value)||0" style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center">
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+                                        <label style="font-size:0.65rem;color:var(--muted)">总调用</label>
+                                        <input type="number" min="0" :value="pForm.model_total_requests[m]||0" @input="pForm.model_total_requests[m]=parseInt($event.target.value)||0" style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center">
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+                                        <label style="font-size:0.65rem;color:var(--muted)">总Token</label>
+                                        <input type="number" min="0" :value="pForm.model_total_tokens[m]||0" @input="pForm.model_total_tokens[m]=parseInt($event.target.value)||0" style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="editingProvider" style="margin-top:1rem">
+                        <label class="model-check" style="font-size:0.85rem">
+                            <input type="checkbox" v-model="pForm.is_active"> 启用此供应商
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-ghost" @click="showProviderModal=false">取消</button>
+                        <button class="btn btn-primary" @click="saveProvider">保存</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== Group Modal ==================== -->
+            <div class="modal-overlay" v-if="showGroupModal" @click.self="showGroupModal=false">
+                <div class="modal">
+                    <h3>{{ editingGroup ? '编辑分组' : '添加分组' }}</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>分组名称</label>
+                            <input v-model="gForm.name" placeholder="e.g. 高性能组">
+                        </div>
+                        <div class="form-group">
+                            <label>别名（对外暴露的 model 名）</label>
+                            <input v-model="gForm.alias" placeholder="e.g. super-llm">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>调度策略</label>
+                            <select v-model="gForm.strategy">
+                                <option value="weighted_random">加权随机</option>
+                                <option value="round_robin">轮询</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--dim);font-weight:500">选择目标模型：</label>
+                        <div class="model-grid" style="margin-top:0.5rem">
+                            <label class="model-check" v-for="m in allModels" :key="m">
+                                <input type="checkbox" :checked="gForm.target_set.has(m)" @change="toggleGroupModel(m)"> {{ m }}
+                            </label>
+                        </div>
+                        <div v-if="!allModels.length" style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">请先添加供应商并拉取模型</div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-ghost" @click="showGroupModal=false">取消</button>
+                        <button class="btn btn-primary" @click="saveGroup">保存</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast -->
+            <div class="toast" :class="toast.type==='error'?'toast-error':'toast-success'" v-if="toast.show">{{ toast.msg }}</div>
+        </div><!-- end .main -->
+    </div><!-- end .app -->
+</div><!-- end #app -->
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const tab = ref('providers');
+        const providers = ref([]);
+        const groups = ref([]);
+        const logs = ref([]);
+        const toast = reactive({ show: false, msg: '', type: 'success' });
+        const providerPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 20 });
+        const logPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 50 });
+
+        function showToast(msg, type = 'success') {
+            toast.msg = msg; toast.type = type; toast.show = true;
+            setTimeout(() => toast.show = false, 2500);
+        }
+
+        function effectiveModels(p) {
+            const sm = p.selected_models;
+            if (sm && sm.length) {
+                if (typeof sm[0] === 'string') return sm;
+                return sm.map(s => s.model);
+            }
+            return p.models;
+        }
+
+        function effectiveModelsWithRPD(p) {
+            const sm = p.selected_models;
+            if (sm && sm.length) {
+                if (typeof sm[0] === 'object') return sm;
+                return sm.map(m => ({ model: m, rpd: 0 }));
+            }
+            return p.models.map(m => ({ model: m, rpd: 0 }));
+        }
+
+        const allModels = computed(() => {
+            const set = new Set();
+            providers.value.forEach(p => effectiveModels(p).forEach(m => set.add(m)));
+            return Array.from(set).sort();
+        });
+
+        async function api(url, opts = {}) {
+            const res = await fetch(url, {
+                headers: { 'Content-Type': 'application/json' },
+                ...opts,
+                body: opts.body ? JSON.stringify(opts.body) : undefined
+            });
             const data = await res.json();
-            const tbody = document.querySelector('#provider-table tbody');
-            tbody.innerHTML = '';
-            data.forEach(p => {
-                const row = `<tr>
-                    <td>${p.name}</td>
-                    <td>${p.base_url}</td>
-                    <td>${p.models.map(m => `<span class="badge">${m}</span>`).join('')}</td>
-                    <td>${p.current_requests_today}/${p.max_requests_per_day}</td>
-                    <td>${p.weight}</td>
-                </tr>`;
-                tbody.innerHTML += row;
+            if (!res.ok) throw new Error(data.error || 'Request failed');
+            return data;
+        }
+
+        async function loadProviders(page) {
+            const pg = page || providerPaging.page;
+            const data = await api(`/admin/providers?page=${pg}&page_size=${providerPaging.page_size}`);
+            providers.value = data.items.map(p => ({ ...p, _fetching: false }));
+            Object.assign(providerPaging, { page: data.page, total: data.total, total_pages: data.total_pages });
+            // Auto-fetch quota for all providers so RPM/TPM bars show data
+            for (const p of providers.value) {
+                api(`/admin/providers/${p.id}/quota`).then(d => { quotaDetail[p.id] = d; }).catch(() => {});
+            }
+        }
+        async function loadGroups() { groups.value = await api('/admin/groups'); }
+        async function loadLogs(page) {
+            const pg = page || logPaging.page;
+            const data = await api(`/admin/logs?page=${pg}&page_size=${logPaging.page_size}`);
+            logs.value = data.items;
+            Object.assign(logPaging, { page: data.page, total: data.total, total_pages: data.total_pages });
+        }
+
+        function pageRange(paging) {
+            const pages = [];
+            const total = paging.total_pages;
+            const cur = paging.page;
+            let start = Math.max(1, cur - 2);
+            let end = Math.min(total, cur + 2);
+            if (end - start < 4) {
+                start = Math.max(1, end - 4);
+                end = Math.min(total, start + 4);
+            }
+            for (let i = start; i <= end; i++) pages.push(i);
+            return pages;
+        }
+        const providerPageNums = computed(() => pageRange(providerPaging));
+        const logPageNums = computed(() => pageRange(logPaging));
+
+        // ---- Provider CRUD ----
+        const showProviderModal = ref(false);
+        const editingProvider = ref(null);
+        const expandedQuota = ref(null);
+        const quotaDetail = reactive({});
+
+        async function toggleQuotaDetail(p) {
+            if (expandedQuota.value === p.id) {
+                expandedQuota.value = null;
+                return;
+            }
+            expandedQuota.value = p.id;
+            try {
+                quotaDetail[p.id] = await api(`/admin/providers/${p.id}/quota`);
+            } catch (e) {
+                quotaDetail[p.id] = [];
+                showToast('获取限额详情失败', 'error');
+            }
+        }
+
+        async function refreshQuotaDetail(p) {
+            try {
+                quotaDetail[p.id] = await api(`/admin/providers/${p.id}/quota`);
+            } catch (e) {
+                showToast('刷新失败', 'error');
+            }
+        }
+
+        const pForm = reactive({
+            name: '', base_url: '', api_key: '', weight: 1,
+            max_requests_per_day: 1000, max_rpm: 0, max_tpm: 0,
+            max_requests_total: 0, max_tokens_total: 0,
+            models_text: '', all_models: [],
+            selected_set: new Set(),
+            model_rpd: {}, model_rpm: {}, model_tpm: {},
+            model_total_requests: {}, model_total_tokens: {},
+            is_active: true
+        });
+
+        const ratePresets = [
+            { label: 'OpenAI Free', rpd: 200, rpm: 3, tpm: 40000 },
+            { label: 'OpenAI Tier1', rpd: 10000, rpm: 500, tpm: 200000 },
+            { label: 'OpenAI Tier2', rpd: 0, rpm: 5000, tpm: 2000000 },
+            { label: 'Claude Free', rpd: 100, rpm: 5, tpm: 20000 },
+            { label: 'Claude Tier1', rpd: 10000, rpm: 50, tpm: 40000 },
+            { label: 'DeepSeek', rpd: 0, rpm: 60, tpm: 0 },
+            { label: 'Gemini Free', rpd: 1500, rpm: 15, tpm: 32000 },
+            { label: '不限制', rpd: 0, rpm: 0, tpm: 0 },
+        ];
+
+        function applyPreset(preset) {
+            pForm.max_requests_per_day = preset.rpd;
+            pForm.max_rpm = preset.rpm;
+            pForm.max_tpm = preset.tpm;
+        }
+
+        function resetPForm() {
+            Object.assign(pForm, {
+                name: '', base_url: '', api_key: '', weight: 1,
+                max_requests_per_day: 1000, max_rpm: 0, max_tpm: 0,
+                max_requests_total: 0, max_tokens_total: 0,
+                models_text: '', all_models: [],
+                selected_set: new Set(), model_rpd: {}, model_rpm: {},
+                model_tpm: {}, model_total_requests: {}, model_total_tokens: {},
+                is_active: true
             });
         }
 
-        async function addProvider() {
-            const data = {
-                name: document.getElementById('p-name').value,
-                base_url: document.getElementById('p-url').value,
-                api_key: document.getElementById('p-key').value,
-                models: document.getElementById('p-models').value.split(',').map(m => m.trim())
+        function openProviderModal(p = null) {
+            resetPForm();
+            editingProvider.value = p;
+            if (p) {
+                pForm.name = p.name; pForm.base_url = p.base_url; pForm.api_key = p.api_key;
+                pForm.weight = p.weight; pForm.max_requests_per_day = p.max_requests_per_day;
+                pForm.max_rpm = p.max_rpm || 0; pForm.max_tpm = p.max_tpm || 0;
+                pForm.max_requests_total = p.max_requests_total || 0;
+                pForm.max_tokens_total = p.max_tokens_total || 0;
+                pForm.is_active = !!p.is_active; pForm.all_models = [...p.models];
+                pForm.models_text = p.models.join(', ');
+                const sm = p.selected_models || [];
+                if (sm.length && typeof sm[0] === 'object') {
+                    pForm.selected_set = new Set(sm.map(s => s.model));
+                    const rpd = {}, rpm = {}, tpm = {}, tr = {}, tt = {};
+                    sm.forEach(s => {
+                        rpd[s.model] = s.rpd || 0; rpm[s.model] = s.rpm || 0;
+                        tpm[s.model] = s.tpm || 0; tr[s.model] = s.total_requests || 0;
+                        tt[s.model] = s.total_tokens || 0;
+                    });
+                    pForm.model_rpd = rpd; pForm.model_rpm = rpm; pForm.model_tpm = tpm;
+                    pForm.model_total_requests = tr; pForm.model_total_tokens = tt;
+                } else {
+                    pForm.selected_set = new Set(sm.length ? sm : p.models);
+                    pForm.model_rpd = {}; pForm.model_rpm = {};
+                    pForm.model_tpm = {}; pForm.model_total_requests = {}; pForm.model_total_tokens = {};
+                }
+            }
+            showProviderModal.value = true;
+        }
+
+        function toggleModel(m) {
+            if (pForm.selected_set.has(m)) pForm.selected_set.delete(m);
+            else pForm.selected_set.add(m);
+            pForm.selected_set = new Set(pForm.selected_set);
+        }
+
+        async function saveProvider() {
+            const models = pForm.all_models.length ? pForm.all_models
+                : pForm.models_text.split(',').map(s => s.trim()).filter(Boolean);
+            // Build selected_models as [{model, rpd}, ...]
+            const selectedArr = pForm.all_models.length
+                ? Array.from(pForm.selected_set)
+                : models;
+            const selected_models = selectedArr.map(m => ({
+                model: m,
+                rpd: parseInt(pForm.model_rpd[m]) || 0,
+                rpm: parseInt(pForm.model_rpm[m]) || 0,
+                tpm: parseInt(pForm.model_tpm[m]) || 0,
+                total_requests: parseInt(pForm.model_total_requests[m]) || 0,
+                total_tokens: parseInt(pForm.model_total_tokens[m]) || 0
+            }));
+            const body = {
+                name: pForm.name, base_url: pForm.base_url, api_key: pForm.api_key,
+                models, selected_models,
+                weight: pForm.weight, max_requests_per_day: pForm.max_requests_per_day,
+                max_rpm: pForm.max_rpm, max_tpm: pForm.max_tpm,
+                max_requests_total: pForm.max_requests_total, max_tokens_total: pForm.max_tokens_total,
+                is_active: pForm.is_active
             };
-            await fetch('/admin/providers', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            fetchProviders();
+            try {
+                if (editingProvider.value) {
+                    await api(`/admin/providers/${editingProvider.value.id}`, { method: 'PUT', body });
+                } else {
+                    await api('/admin/providers', { method: 'POST', body });
+                }
+                showProviderModal.value = false;
+                await loadProviders();
+                showToast('供应商已保存');
+            } catch (e) { showToast(e.message, 'error'); }
         }
 
-        fetchProviders();
-    </script>
+        async function deleteProvider(p) {
+            if (!confirm(`确定删除供应商 "${p.name}"？`)) return;
+            try {
+                await api(`/admin/providers/${p.id}`, { method: 'DELETE' });
+                await loadProviders(); showToast('已删除');
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function fetchModels(p) {
+            p._fetching = true;
+            try {
+                const data = await api(`/admin/providers/${p.id}/fetch-models`, { method: 'POST' });
+                await loadProviders();
+                showToast(`已拉取 ${data.models.length} 个模型`);
+            } catch (e) { showToast('拉取失败: ' + e.message, 'error'); }
+            p._fetching = false;
+        }
+
+        // ---- Group CRUD ----
+        const showGroupModal = ref(false);
+        const editingGroup = ref(null);
+        const gForm = reactive({ name: '', alias: '', strategy: 'weighted_random', target_set: new Set() });
+
+        function openGroupModal(g = null) {
+            editingGroup.value = g;
+            if (g) {
+                gForm.name = g.name; gForm.alias = g.alias;
+                gForm.strategy = g.strategy || 'weighted_random';
+                gForm.target_set = new Set(g.target_models);
+            } else {
+                gForm.name = ''; gForm.alias = ''; gForm.strategy = 'weighted_random';
+                gForm.target_set = new Set();
+            }
+            showGroupModal.value = true;
+        }
+
+        function toggleGroupModel(m) {
+            if (gForm.target_set.has(m)) gForm.target_set.delete(m);
+            else gForm.target_set.add(m);
+            gForm.target_set = new Set(gForm.target_set);
+        }
+
+        async function saveGroup() {
+            const body = {
+                name: gForm.name, alias: gForm.alias,
+                target_models: Array.from(gForm.target_set), strategy: gForm.strategy
+            };
+            try {
+                if (editingGroup.value) {
+                    await api(`/admin/groups/${editingGroup.value.id}`, { method: 'PUT', body });
+                } else {
+                    await api('/admin/groups', { method: 'POST', body });
+                }
+                showGroupModal.value = false;
+                await loadGroups(); showToast('分组已保存');
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function deleteGroup(g) {
+            if (!confirm(`确定删除分组 "${g.name}"？`)) return;
+            try {
+                await api(`/admin/groups/${g.id}`, { method: 'DELETE' });
+                await loadGroups(); showToast('已删除');
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        onMounted(() => { loadProviders(); loadGroups(); loadLogs(); });
+
+        return {
+            tab, providers, groups, logs, toast, allModels, effectiveModels, effectiveModelsWithRPD, ratePresets, applyPreset,
+            providerPaging, logPaging, providerPageNums, logPageNums,
+            showProviderModal, editingProvider, pForm, openProviderModal, toggleModel, saveProvider, deleteProvider, fetchModels,
+            expandedQuota, quotaDetail, toggleQuotaDetail, refreshQuotaDetail,
+            showGroupModal, editingGroup, gForm, openGroupModal, toggleGroupModel, saveGroup, deleteGroup,
+            loadProviders, loadLogs, showToast
+        };
+    }
+}).mount('#app');
+</script>
 </body>
 </html>

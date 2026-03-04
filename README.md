@@ -1,56 +1,250 @@
-# SimapleLLMDispatch (Node.js)
+# ⚡ SimapleLLMDispatch
 
-SimapleLLMDispatch 是一个专为 OpenAI 格式设计的大语言模型（LLM）调度中心。它能将多个上游 API 整合为一个统一且高可用的入口。
+一个轻量级的 LLM API 智能调度代理，兼容 OpenAI API 格式。将多个 LLM 供应商统一为一个入口，自动处理负载均衡、配额管理、速率限制和故障切换。
 
-## ✨ 核心特性
+## 功能特性
 
-根据你的需求，本项目实现了以下核心功能：
+- **OpenAI 兼容** — 直接替换 `base_url` 即可使用，支持 `/v1/chat/completions` 和 `/v1/models`
+- **多供应商管理** — 同时接入多个 LLM 供应商（OpenAI、Claude、DeepSeek、Gemini 等）
+- **智能调度** — 支持加权随机和轮询两种策略
+- **多层级配额** — 供应商级别 + 模型级别，支持 RPD / RPM / TPM / 总请求数 / 总 Token 数
+- **自动故障切换** — 供应商失败时自动重试下一个可用供应商
+- **流式响应** — 完整支持 SSE 流式输出，自动提取 usage 信息
+- **模型分组** — 将多个模型聚合为一个别名，统一对外暴露
+- **可视化 Dashboard** — 暗色主题管理面板，实时查看配额使用情况
+- **零外部依赖** — 仅需 Flask + SQLite，开箱即用
 
-1.  **多供应商聚合 (Unified Gateway)**
-    *   支持配置多个 `base_url`、`api_key`。
-    *   对外提供统一的地址和 Token，用户无需理解后端负载，只需访问：`http://localhost:3000/v1`。
+## 截图
 
-2.  **智能调度策略 (Smart Scheduling)**
-    *   **轮询与加权 (Round Robin & Weighted Random)**: 根据预设权重或轮询机制分配请求。
-    *   **限额意识 (Quota Aware)**: 动态监控每日限额，当某个 Provider 达到上限时，自动将其从候选名单中移除。
-    *   **故障转移 (Failover)**: 若一个 Provider 请求失败，调度中心会尝试列表中的下一个可用节点，确保服务高可用。
+### 供应商编辑与额度设置
+![供应商编辑与额度设置](pic/供应商编辑与额度设置.png)
 
-3.  **自动预览与模型选择 (Model Discovery & Filtering)**
-    *   **自动获得模型**: 支持一键从配置的 API 地址获取所有可用的模型列表。
-    *   **精细化模型控制**: 用户可以手动勾选要使用的模型。调度中心仅在用户选中的模型范围内进行智能匹配和分发。
+### 供应商额度看板
+![供应商额度看板](pic/供应商额度看表.png)
 
-4.  **灵活的分批与分发 (Flexible Grouping & Batched Dispatching)**
-    *   **模型别名与分组**: 支持将模型分批并设置别名（Model Groups）。例如，将 `gpt-4-turbo` 和 `claude-3-opus` 统一分发到 `super-llm` 这个别名下。
-    *   **灵活调度**: 不同模型批次可以有不同的调度策略，满足复杂场景下的灵活需求。
+### 创建模型分组
+![创建模型分组](pic/创建模型分组.png)
 
-## 🚀 快速开始
+### 调用日志
+![调用日志](pic/调用日志.png)
 
-### 1. 环境准备
-*   Node.js 18+ (推荐)
-*   SQLite3
+## 快速开始
 
-### 2. 安装依赖
+### 安装依赖
+
 ```bash
-npm install
+pip install -r requirements.txt
 ```
 
-### 3. 后端启动
+### 启动服务
+
 ```bash
-node server.js
+python app.py
 ```
-运行后，管理后台默认在 `http://localhost:3000/dashboard.html`（Vue 3 版正在开发中）。
 
-## 🛠️ API & 管理
+服务默认运行在 `http://localhost:3000`，打开浏览器访问即可进入 Dashboard。
 
-*   **统一入口**: `POST /v1/chat/completions`
-*   **模型发现**: `POST /admin/providers/:id/fetch-models`
-*   **配额管理**: 支持设置 `max_requests_per_day`。
-*   **模型分组**: `POST /admin/groups` 配置别名逻辑。
+### 环境变量
 
-## 🏗️ 架构说明
-*   **后端**: 基于 Express 开发，使用 `better-sqlite3` 存储配置和日志。
-*   **调度**: `scheduler.js` 负责核心的供应商选择逻辑。
-*   **前端**: `public/dashboard.html` 提供基础界面，计划迁移至强交互的 Vue 3 界面。
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | `3000` | 服务端口 |
+| `DB_PATH` | `llm_dispatcher.db` | SQLite 数据库路径 |
+| `UPSTREAM_TIMEOUT` | `30` | 上游请求超时（秒） |
+| `DEBUG` | `0` | 设为 `1` 开启 Flask 调试模式 |
 
-## 📄 许可证
-ISC License
+## 使用方式
+
+启动后，将你的 LLM 客户端的 `base_url` 指向本服务即可：
+
+```
+http://localhost:3000/v1
+```
+
+### 示例：使用 curl 调用
+
+```bash
+curl http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+### 示例：使用 Python OpenAI SDK
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:3000/v1",
+    api_key="any-key"  # API Key 由后端管理，此处随意填写
+)
+
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+print(response.choices[0].message.content)
+```
+
+## 项目结构
+
+```
+├── app.py              # Flask 应用入口
+├── config.py           # 配置（端口、数据库路径、超时等）
+├── database.py         # SQLite 初始化与自动迁移
+├── models.py           # 数据访问层（Provider / Group / UsageLog DAO）
+├── scheduler.py        # 调度引擎（策略模式、模型解析、配额检查）
+├── rate_limiter.py     # 速率限制器（RPM 持久化 + TPM 内存滑动窗口）
+├── routes/
+│   ├── admin.py        # 管理 API（供应商 / 分组 / 日志 CRUD）
+│   └── proxy.py        # OpenAI 兼容代理（chat completions / models）
+├── public/
+│   └── dashboard.html  # Vue 3 单文件 Dashboard
+├── pic/                # 截图
+└── requirements.txt    # Python 依赖
+```
+
+## 配额系统
+
+支持两个层级的配额控制：
+
+**供应商级别：**
+- RPD（每日请求数）
+- RPM（每分钟请求数）
+- TPM（每分钟 Token 数）
+- 总请求数上限
+- 总 Token 上限
+
+**模型级别（每个模型可独立设置）：**
+- RPD / RPM / TPM / 总请求数 / 总 Token
+
+设为 `0` 表示不限制。Dashboard 内置了常用供应商的速率预设（OpenAI Free/Tier1/Tier2、Claude、DeepSeek、Gemini 等），一键应用。
+
+## 调度策略
+
+- **加权随机（weighted_random）** — 按供应商权重随机分配，权重越高被选中概率越大
+- **轮询（round_robin）** — 按顺序依次分配
+
+通过模型分组功能，可以将不同供应商的模型聚合为一个别名。例如将多个供应商的 `gpt-4` 聚合为 `super-gpt`，客户端只需请求 `super-gpt` 即可自动调度。
+
+## API 端点
+
+### 代理接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/v1/chat/completions` | Chat Completions（兼容 OpenAI） |
+| GET | `/v1/models` | 列出所有可用模型 |
+
+### 管理接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET/POST | `/admin/providers` | 供应商列表 / 创建 |
+| PUT/DELETE | `/admin/providers/<id>` | 更新 / 删除供应商 |
+| POST | `/admin/providers/<id>/fetch-models` | 从供应商拉取模型列表 |
+| GET | `/admin/providers/<id>/quota` | 查看供应商配额详情 |
+| GET/POST | `/admin/groups` | 分组列表 / 创建 |
+| PUT/DELETE | `/admin/groups/<id>` | 更新 / 删除分组 |
+| GET | `/admin/logs` | 调用日志（支持分页） |
+
+## License
+
+MIT
+
+### 示例：使用 curl 调用
+
+```bash
+curl http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+### 示例：使用 Python OpenAI SDK
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:3000/v1",
+    api_key="any-key"  # API Key 由后端管理，此处随意填写
+)
+
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+print(response.choices[0].message.content)
+```
+
+## 项目结构
+
+```
+├── app.py              # Flask 应用入口
+├── config.py           # 配置（端口、数据库路径、超时等）
+├── database.py         # SQLite 初始化与自动迁移
+├── models.py           # 数据访问层（Provider / Group / UsageLog DAO）
+├── scheduler.py        # 调度引擎（策略模式、模型解析、配额检查）
+├── rate_limiter.py     # 速率限制器（RPM 持久化 + TPM 内存滑动窗口）
+├── routes/
+│   ├── admin.py        # 管理 API（供应商 / 分组 / 日志 CRUD）
+│   └── proxy.py        # OpenAI 兼容代理（chat completions / models）
+├── public/
+│   └── dashboard.html  # Vue 3 单文件 Dashboard
+├── pic/                # 截图
+└── requirements.txt    # Python 依赖
+```
+
+## 配额系统
+
+支持两个层级的配额控制：
+
+**供应商级别：**
+- RPD（每日请求数）
+- RPM（每分钟请求数）
+- TPM（每分钟 Token 数）
+- 总请求数上限
+- 总 Token 上限
+
+**模型级别（每个模型可独立设置）：**
+- RPD / RPM / TPM / 总请求数 / 总 Token
+
+设为 `0` 表示不限制。Dashboard 内置了常用供应商的速率预设（OpenAI Free/Tier1/Tier2、Claude、DeepSeek、Gemini 等），一键应用。
+
+## 调度策略
+
+- **加权随机（weighted_random）** — 按供应商权重随机分配，权重越高被选中概率越大
+- **轮询（round_robin）** — 按顺序依次分配
+
+通过模型分组功能，可以将不同供应商的模型聚合为一个别名。例如将多个供应商的 `gpt-4` 聚合为 `super-gpt`，客户端只需请求 `super-gpt` 即可自动调度。
+
+## API 端点
+
+### 代理接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/v1/chat/completions` | Chat Completions（兼容 OpenAI） |
+| GET | `/v1/models` | 列出所有可用模型 |
+
+### 管理接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET/POST | `/admin/providers` | 供应商列表 / 创建 |
+| PUT/DELETE | `/admin/providers/<id>` | 更新 / 删除供应商 |
+| POST | `/admin/providers/<id>/fetch-models` | 从供应商拉取模型列表 |
+| GET | `/admin/providers/<id>/quota` | 查看供应商配额详情 |
+| GET/POST | `/admin/groups` | 分组列表 / 创建 |
+| PUT/DELETE | `/admin/groups/<id>` | 更新 / 删除分组 |
+| GET | `/admin/logs` | 调用日志（支持分页） |
+
+## License
+
+MIT
