@@ -8,9 +8,20 @@
       <button class="btn btn-primary" @click="$emit('add')">+ 添加供应商</button>
     </div>
 
+    <div class="search-bar">
+      <input
+        v-model="searchName"
+        placeholder="搜索供应商名称..."
+        @keyup.enter="doSearch"
+        style="width:200px"
+      >
+      <button class="btn btn-primary btn-sm" @click="doSearch">搜索</button>
+      <button class="btn btn-ghost btn-sm" v-if="searchName" @click="clearSearch">清除</button>
+    </div>
+
     <StatsCards
       label1="供应商总数"
-      :value1="providers.length"
+      :value1="paging.total"
       label2="活跃"
       :value2="providers.filter(p => p.is_active).length"
       label3="今日总请求"
@@ -195,7 +206,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import StatsCards from './StatsCards.vue'
 import QuotaBar from './QuotaBar.vue'
 
@@ -218,7 +229,18 @@ const props = defineProps({
   }
 })
 
-const $emit = defineEmits(['add', 'edit', 'delete', 'fetchModels', 'refreshQuota', 'toggleQuota', 'loadPage', 'toggleQuotaDetail'])
+const $emit = defineEmits(['add', 'edit', 'delete', 'fetchModels', 'refreshQuota', 'toggleQuota', 'loadPage', 'toggleQuotaDetail', 'search'])
+
+const searchName = ref('')
+
+function doSearch() {
+  $emit('search', { name: searchName.value })
+}
+
+function clearSearch() {
+  searchName.value = ''
+  $emit('search', { name: '' })
+}
 
 function effectiveModels(p) {
   const sm = p.selected_models
@@ -268,7 +290,7 @@ function toggleQuotaDetail(p) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1rem;
 }
 
 .page-title {
@@ -280,5 +302,12 @@ function toggleQuotaDetail(p) {
   font-size: 0.85rem;
   color: var(--muted);
   margin-top: 0.2rem;
+}
+
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
 }
 </style>

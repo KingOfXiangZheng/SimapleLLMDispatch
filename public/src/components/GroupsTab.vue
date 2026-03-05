@@ -8,6 +8,17 @@
       <button class="btn btn-primary" @click="$emit('add')">+ 添加分组</button>
     </div>
 
+    <div class="search-bar">
+      <input
+        v-model="searchName"
+        placeholder="搜索名称或别名..."
+        @keyup.enter="doSearch"
+        style="width:200px"
+      >
+      <button class="btn btn-primary btn-sm" @click="doSearch">搜索</button>
+      <button class="btn btn-ghost btn-sm" v-if="searchName" @click="clearSearch">清除</button>
+    </div>
+
     <div class="card">
       <table>
         <thead>
@@ -43,19 +54,61 @@
           </tr>
         </tbody>
       </table>
+
+      <div class="pagination" v-if="paging.total_pages > 1">
+        <button class="page-btn" :disabled="paging.page <= 1" @click="$emit('loadPage', 1)">«</button>
+        <button class="page-btn" :disabled="paging.page <= 1" @click="$emit('loadPage', paging.page - 1)">‹</button>
+        <template v-for="pg in pageNums" :key="pg">
+          <button
+            class="page-btn"
+            :class="{ active: pg === paging.page }"
+            @click="$emit('loadPage', pg)"
+          >{{ pg }}</button>
+        </template>
+        <button class="page-btn" :disabled="paging.page >= paging.total_pages" @click="$emit('loadPage', paging.page + 1)">›</button>
+        <button class="page-btn" :disabled="paging.page >= paging.total_pages" @click="$emit('loadPage', paging.total_pages)">»</button>
+        <span class="info">共 {{ paging.total }} 条</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-defineProps({
-  groups: {
-    type: Array,
-    default: () => []
-  }
+import { ref, computed } from 'vue'
+
+const props = defineProps({
+  groups: { type: Array, default: () => [] },
+  paging: { type: Object, default: () => ({ page: 1, total: 0, total_pages: 1, page_size: 20 }) }
 })
 
-defineEmits(['add', 'edit', 'delete'])
+const emit = defineEmits(['add', 'edit', 'delete', 'loadPage', 'search'])
+
+const searchName = ref('')
+
+function doSearch() {
+  emit('search', { name: searchName.value })
+}
+
+function clearSearch() {
+  searchName.value = ''
+  emit('search', { name: '' })
+}
+
+function pageRange(paging) {
+  const pages = []
+  const total = paging.total_pages
+  const cur = paging.page
+  let start = Math.max(1, cur - 2)
+  let end = Math.min(total, cur + 2)
+  if (end - start < 4) {
+    start = Math.max(1, end - 4)
+    end = Math.min(total, start + 4)
+  }
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
+}
+
+const pageNums = computed(() => pageRange(props.paging))
 </script>
 
 <style scoped>
@@ -63,17 +116,9 @@ defineEmits(['add', 'edit', 'delete'])
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1rem;
 }
-
-.page-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-}
-
-.page-desc {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-top: 0.2rem;
-}
+.page-title { font-size: 1.4rem; font-weight: 700; }
+.page-desc { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; }
+.search-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.25rem; }
 </style>

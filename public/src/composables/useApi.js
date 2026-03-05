@@ -14,8 +14,10 @@ export function useApi() {
   }
 
   // Providers
-  async function loadProviders(page = 1, pageSize = 20) {
-    const data = await api(`/admin/providers?page=${page}&page_size=${pageSize}`)
+  async function loadProviders(page = 1, pageSize = 20, { name = '' } = {}) {
+    let url = `/admin/providers?page=${page}&page_size=${pageSize}`
+    if (name) url += `&name=${encodeURIComponent(name)}`
+    const data = await api(url)
     return {
       items: data.items.map(p => ({ ...p, _fetching: false })),
       page: data.page,
@@ -58,8 +60,16 @@ export function useApi() {
   }
 
   // Groups
-  async function loadGroups() {
-    return api('/admin/groups')
+  async function loadGroups(page = 1, pageSize = 20, { name = '' } = {}) {
+    let url = `/admin/groups?page=${page}&page_size=${pageSize}`
+    if (name) url += `&name=${encodeURIComponent(name)}`
+    const data = await api(url)
+    return {
+      items: data.items,
+      page: data.page,
+      total: data.total,
+      total_pages: data.total_pages
+    }
   }
 
   async function loadAllModels() {
@@ -79,8 +89,11 @@ export function useApi() {
   }
 
   // Logs
-  async function loadLogs(page = 1, pageSize = 50) {
-    const data = await api(`/admin/logs?page=${page}&page_size=${pageSize}`)
+  async function loadLogs(page = 1, pageSize = 20, { providerName = '', model = '' } = {}) {
+    let url = `/admin/logs?page=${page}&page_size=${pageSize}`
+    if (providerName) url += `&provider_name=${encodeURIComponent(providerName)}`
+    if (model) url += `&model=${encodeURIComponent(model)}`
+    const data = await api(url)
     return {
       items: data.items,
       page: data.page,

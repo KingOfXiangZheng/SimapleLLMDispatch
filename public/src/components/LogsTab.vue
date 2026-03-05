@@ -8,6 +8,23 @@
       <button class="btn btn-ghost" @click="$emit('refresh')">🔄 刷新</button>
     </div>
 
+    <div class="search-bar">
+      <input
+        v-model="searchProvider"
+        placeholder="搜索供应商..."
+        @keyup.enter="doSearch"
+        style="width:180px"
+      >
+      <input
+        v-model="searchModel"
+        placeholder="搜索模型..."
+        @keyup.enter="doSearch"
+        style="width:180px"
+      >
+      <button class="btn btn-primary btn-sm" @click="doSearch">搜索</button>
+      <button class="btn btn-ghost btn-sm" v-if="searchProvider || searchModel" @click="clearSearch">清除</button>
+    </div>
+
     <div class="card">
       <table>
         <thead>
@@ -56,7 +73,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   logs: {
@@ -65,11 +82,24 @@ const props = defineProps({
   },
   paging: {
     type: Object,
-    default: () => ({ page: 1, total: 0, total_pages: 1, page_size: 50 })
+    default: () => ({ page: 1, total: 0, total_pages: 1, page_size: 20 })
   }
 })
 
-defineEmits(['refresh', 'loadPage'])
+const emit = defineEmits(['refresh', 'loadPage', 'search'])
+
+const searchProvider = ref('')
+const searchModel = ref('')
+
+function doSearch() {
+  emit('search', { providerName: searchProvider.value, model: searchModel.value })
+}
+
+function clearSearch() {
+  searchProvider.value = ''
+  searchModel.value = ''
+  emit('search', { providerName: '', model: '' })
+}
 
 function pageRange(paging) {
   const pages = []
@@ -93,7 +123,7 @@ const pageNums = computed(() => pageRange(props.paging))
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1rem;
 }
 
 .page-title {
@@ -105,5 +135,12 @@ const pageNums = computed(() => pageRange(props.paging))
   font-size: 0.85rem;
   color: var(--muted);
   margin-top: 0.2rem;
+}
+
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
 }
 </style>

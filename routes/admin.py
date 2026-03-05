@@ -37,8 +37,9 @@ def _auto_sync_provider_group(name: str, selected_models):
 def list_providers():
     page = request.args.get("page", 0, type=int)
     page_size = request.args.get("page_size", 20, type=int)
+    name = request.args.get("name", "", type=str).strip()
     if page > 0:
-        return jsonify(ProviderDAO.get_page(page, page_size))
+        return jsonify(ProviderDAO.get_page(page, page_size, name))
     return jsonify(ProviderDAO.get_all())
 
 
@@ -163,6 +164,11 @@ def provider_quota(pid):
 
 @admin_bp.route("/groups", methods=["GET"])
 def list_groups():
+    page = request.args.get("page", 0, type=int)
+    page_size = request.args.get("page_size", 20, type=int)
+    name = request.args.get("name", "", type=str).strip()
+    if page > 0:
+        return jsonify(GroupDAO.get_page(page, page_size, name))
     return jsonify(GroupDAO.get_all())
 
 
@@ -198,9 +204,11 @@ def delete_group(gid):
 @admin_bp.route("/logs", methods=["GET"])
 def list_logs():
     page = request.args.get("page", 0, type=int)
-    page_size = request.args.get("page_size", 50, type=int)
+    page_size = request.args.get("page_size", 20, type=int)
+    provider_name = request.args.get("provider_name", "", type=str).strip()
+    model = request.args.get("model", "", type=str).strip()
     if page > 0:
-        return jsonify(UsageLogDAO.get_page(page, page_size))
+        return jsonify(UsageLogDAO.get_page(page, page_size, provider_name, model))
     # Legacy: no page param → return flat array
     limit = request.args.get("limit", 100, type=int)
     return jsonify(UsageLogDAO.get_recent(limit))

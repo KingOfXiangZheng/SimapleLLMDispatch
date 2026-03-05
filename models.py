@@ -14,13 +14,19 @@ class ProviderDAO:
         return [ProviderDAO._parse(r) for r in rows]
 
     @staticmethod
-    def get_page(page: int = 1, page_size: int = 20) -> dict:
+    def get_page(page: int = 1, page_size: int = 20, name: str = "") -> dict:
         conn = get_db()
-        total = conn.execute("SELECT COUNT(*) as cnt FROM providers").fetchone()["cnt"]
+        where_clauses = []
+        params = []
+        if name:
+            where_clauses.append("name LIKE ?")
+            params.append(f"%{name}%")
+        where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+        total = conn.execute(f"SELECT COUNT(*) as cnt FROM providers{where_sql}", params).fetchone()["cnt"]
         offset = (page - 1) * page_size
         rows = conn.execute(
-            "SELECT * FROM providers ORDER BY id DESC LIMIT ? OFFSET ?",
-            (page_size, offset)
+            f"SELECT * FROM providers{where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
+            params + [page_size, offset]
         ).fetchall()
         conn.close()
         return {
@@ -142,6 +148,30 @@ class GroupDAO:
         return [GroupDAO._parse(r) for r in rows]
 
     @staticmethod
+    def get_page(page: int = 1, page_size: int = 20, name: str = "") -> dict:
+        conn = get_db()
+        where_clauses = []
+        params = []
+        if name:
+            where_clauses.append("(name LIKE ? OR alias LIKE ?)")
+            params.extend([f"%{name}%", f"%{name}%"])
+        where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+        total = conn.execute(f"SELECT COUNT(*) as cnt FROM model_groups{where_sql}", params).fetchone()["cnt"]
+        offset = (page - 1) * page_size
+        rows = conn.execute(
+            f"SELECT * FROM model_groups{where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
+            params + [page_size, offset]
+        ).fetchall()
+        conn.close()
+        return {
+            "items": [GroupDAO._parse(r) for r in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, (total + page_size - 1) // page_size),
+        }
+
+    @staticmethod
     def get_by_alias(alias: str) -> dict | None:
         conn = get_db()
         row = conn.execute("SELECT * FROM model_groups WHERE alias = ?", (alias,)).fetchone()
@@ -215,15 +245,30 @@ class UsageLogDAO:
         return [UsageLogDAO._normalize(r) for r in rows]
 
     @staticmethod
-    def get_page(page: int = 1, page_size: int = 50) -> dict:
+    def get_page(page: int = 1, page_size: int = 20,
+                 provider_name: str = "", model: str = "") -> dict:
         conn = get_db()
-        total = conn.execute("SELECT COUNT(*) as cnt FROM usage_logs").fetchone()["cnt"]
+        where_clauses = []
+        params = []
+        if provider_name:
+            where_clauses.append("p.name LIKE ?")
+            params.append(f"%{provider_name}%")
+        if model:
+            where_clauses.append("l.model LIKE ?")
+            params.append(f"%{model}%")
+        where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+        total = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM usage_logs l LEFT JOIN providers p ON l.provider_id = p.id{where_sql}",
+            params
+        ).fetchone()["cnt"]
         offset = (page - 1) * page_size
         rows = conn.execute(
-            """SELECT l.*, p.name as provider_name
+            f"""SELECT l.*, p.name as provider_name
                FROM usage_logs l LEFT JOIN providers p ON l.provider_id = p.id
+               {where_sql}
                ORDER BY l.timestamp DESC LIMIT ? OFFSET ?""",
-            (page_size, offset)
+            params + [page_size, offset]
         ).fetchall()
         conn.close()
         return {

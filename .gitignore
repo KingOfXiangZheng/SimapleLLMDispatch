@@ -31,3 +31,6 @@ Thumbs.db
 # Environment
 .env
 .env.*
+
+
+public/node_modules

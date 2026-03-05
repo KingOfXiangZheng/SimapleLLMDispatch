@@ -15,14 +15,18 @@
           @refreshQuota="refreshQuotaDetail"
           @loadPage="loadProviders"
           @toggleQuotaDetail="toggleQuotaDetail"
+          @search="onProviderSearch"
         />
       </template>
       <template v-if="tab === 'groups'">
         <GroupsTab
           :groups="groups"
+          :paging="groupPaging"
           @add="openGroupModal()"
           @edit="openGroupModal"
           @delete="deleteGroup"
+          @loadPage="loadGroups"
+          @search="onGroupSearch"
         />
       </template>
       <template v-if="tab === 'logs'">
@@ -31,6 +35,7 @@
           :paging="logPaging"
           @refresh="loadLogs(1)"
           @loadPage="loadLogs"
+          @search="onLogSearch"
         />
       </template>
     </div>
@@ -85,6 +90,7 @@ const tab = ref('providers')
 const toastRef = ref(null)
 const providers = ref([])
 const providerPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 20 })
+const providerSearch = reactive({ name: '' })
 const quotaDetail = reactive({})
 const expandedQuota = ref(null)
 const showProviderModal = ref(false)
@@ -118,6 +124,8 @@ const groups = ref([])
 const showGroupModal = ref(false)
 const editingGroup = ref(null)
 const groupModalRef = ref(null)
+const groupPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 20 })
+const groupSearch = reactive({ name: '' })
 
 const gForm = reactive({
   name: '',
@@ -130,7 +138,8 @@ const gForm = reactive({
 })
 
 const logs = ref([])
-const logPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 50 })
+const logPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 20 })
+const logSearch = reactive({ providerName: '', model: '' })
 
 function showToast(msg, type = 'success') {
   if (toastRef.value) toastRef.value.showToast(msg, type)
@@ -152,7 +161,7 @@ const allModels = computed(() => {
 
 async function loadProviders(page = 1) {
   try {
-    const data = await apiLoadProviders(page, providerPaging.page_size)
+    const data = await apiLoadProviders(page, providerPaging.page_size, providerSearch)
     providers.value = data.items
     Object.assign(providerPaging, { page: data.page, total: data.total, total_pages: data.total_pages })
     for (const p of providers.value) {
@@ -161,17 +170,35 @@ async function loadProviders(page = 1) {
   } catch (e) { showToast(e.message, 'error') }
 }
 
-async function loadGroups() {
-  try { groups.value = await apiLoadGroups() }
-  catch (e) { showToast(e.message, 'error') }
+function onProviderSearch(filters) {
+  Object.assign(providerSearch, filters)
+  loadProviders(1)
+}
+
+async function loadGroups(page = 1) {
+  try {
+    const data = await apiLoadGroups(page, groupPaging.page_size, groupSearch)
+    groups.value = data.items
+    Object.assign(groupPaging, { page: data.page, total: data.total, total_pages: data.total_pages })
+  } catch (e) { showToast(e.message, 'error') }
+}
+
+function onGroupSearch(filters) {
+  Object.assign(groupSearch, filters)
+  loadGroups(1)
 }
 
 async function loadLogs(page = 1) {
   try {
-    const data = await apiLoadLogs(page, logPaging.page_size)
+    const data = await apiLoadLogs(page, logPaging.page_size, logSearch)
     logs.value = data.items
     Object.assign(logPaging, { page: data.page, total: data.total, total_pages: data.total_pages })
   } catch (e) { showToast(e.message, 'error') }
+}
+
+function onLogSearch(filters) {
+  Object.assign(logSearch, filters)
+  loadLogs(1)
 }
 
 function resetPForm() {
@@ -317,7 +344,7 @@ async function openGroupModal(g = null) {
   
   // 获取最新供应商列表
   try {
-    const providerData = await apiLoadProviders(1, 1000)
+    const providerData = await apiLoadProviders(1, 1000, {})
     providers.value = providerData.items
   } catch (e) { console.error('Failed to load providers:', e) }
   
@@ -366,6 +393,13 @@ async function deleteGroup(g) {
 }
 
 onMounted(() => { loadProviders(); loadGroups(); loadLogs() })
+
+// Auto-refresh data when switching tabs
+watch(tab, (newTab) => {
+  if (newTab === 'providers') loadProviders()
+  else if (newTab === 'groups') loadGroups()
+  else if (newTab === 'logs') loadLogs(1)
+})
 </script>
 
 <style>
