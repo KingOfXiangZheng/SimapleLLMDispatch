@@ -89,7 +89,7 @@ const {
 const tab = ref('providers')
 const toastRef = ref(null)
 const providers = ref([])
-const providerPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 20 })
+const providerPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 4 })
 const providerSearch = reactive({ name: '' })
 const quotaDetail = reactive({})
 const expandedQuota = ref(null)
@@ -124,7 +124,7 @@ const groups = ref([])
 const showGroupModal = ref(false)
 const editingGroup = ref(null)
 const groupModalRef = ref(null)
-const groupPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 20 })
+const groupPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 10 })
 const groupSearch = reactive({ name: '' })
 
 const gForm = reactive({
@@ -138,7 +138,7 @@ const gForm = reactive({
 })
 
 const logs = ref([])
-const logPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 20 })
+const logPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 10 })
 const logSearch = reactive({ providerName: '', model: '' })
 
 function showToast(msg, type = 'success') {
@@ -206,6 +206,7 @@ function resetPForm() {
     name: '', base_url: '', api_key: '', weight: 1,
     max_requests_per_day: 1000, max_rpm: 0, max_tpm: 0,
     max_requests_total: 0, max_tokens_total: 0,
+    models_text: '', all_models: [],
     model_search: '', selected_set: new Set(),
     model_rpd: {}, model_rpm: {}, model_tpm: {},
     model_total_requests: {}, model_total_tokens: {},
@@ -255,8 +256,29 @@ function openProviderModal(p = null) {
 }
 
 async function saveProvider() {
-  const models = pForm.all_models.length ? pForm.all_models : pForm.models_text.split(',').map(s => s.trim()).filter(Boolean)
-  const selectedArr = pForm.all_models.length ? Array.from(pForm.selected_set) : models
+  // Use models_text as the primary source of truth if it's provided
+  const models = pForm.models_text.split(',').map(s => s.trim()).filter(Boolean)
+  
+  // If we have fetched models and they are visible in the checklist, 
+  // we filter models_text to only include what's actually selected in the set.
+  // Actually, if a user manually typed models, we should respect that.
+  // The UI logic is: typing in the box adds to available models.
+  // Pulling from API also adds to available models.
+  // selected_set determines which ones are enabled with quotas.
+  
+  // Revised logic: 
+  // 1. All available models = Union of (what's in the text box) and (what was fetched)
+  const manualModels = pForm.models_text.split(',').map(s => s.trim()).filter(Boolean)
+  const fetchedModels = pForm.all_models || []
+  const allAvailableModels = Array.from(new Set([...manualModels, ...fetchedModels]))
+  
+  // 2. Models to save = what's in the text box (this matches user's visual list in the input)
+  // Wait, the 'models' field in DB usually means 'all models this provider supports'.
+  // 'selected_models' means 'configured models'.
+  
+  const finalModels = allAvailableModels
+  const selectedArr = Array.from(pForm.selected_set)
+  
   const selected_models = selectedArr.map(m => ({
     model: m,
     rpd: parseInt(pForm.model_rpd[m]) || 0,
@@ -265,9 +287,10 @@ async function saveProvider() {
     total_requests: parseInt(pForm.model_total_requests[m]) || 0,
     total_tokens: parseInt(pForm.model_total_tokens[m]) || 0
   }))
+
   const body = {
     name: pForm.name, base_url: pForm.base_url, api_key: pForm.api_key,
-    models, selected_models, weight: pForm.weight,
+    models: finalModels, selected_models, weight: pForm.weight,
     max_requests_per_day: pForm.max_requests_per_day,
     max_rpm: pForm.max_rpm, max_tpm: pForm.max_tpm,
     max_requests_total: pForm.max_requests_total,
@@ -309,6 +332,7 @@ async function fetchModelsInModal() {
   try {
     const fetchedModels = await fetchModelsFromApi(pForm.base_url, pForm.api_key)
     pForm.all_models = fetchedModels
+    pForm.models_text = fetchedModels.join(', ')
     const fetchedSet = new Set(fetchedModels)
     pForm.selected_set = new Set([...pForm.selected_set].filter(m => fetchedSet.has(m)))
     showToast(`已拉取 ${fetchedModels.length} 个模型`)

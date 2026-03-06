@@ -47,6 +47,7 @@ def _handle_chat(body: dict, attempt: int, excluded_ids: set):
 
     url = provider["base_url"].rstrip("/") + "/chat/completions"
     headers = {
+        "lora_id":"0",
         "Authorization": f"Bearer {provider['api_key']}",
         "Content-Type": "application/json",
     }

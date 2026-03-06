@@ -199,7 +199,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
 const props = defineProps({
   show: Boolean,
@@ -208,6 +208,16 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save', 'fetchModelsInModal'])
+
+// Sync the comma-separated text back to the list of "all_models" for the checklist
+watch(() => props.initialForm?.models_text, (val) => {
+  if (!props.initialForm) return
+  const list = (val || '').split(',').map(s => s.trim()).filter(Boolean)
+  // Merge current all_models with the new list to preserve any fetched but not typed models
+  const current = props.initialForm.all_models || []
+  const merged = Array.from(new Set([...list, ...current]))
+  props.initialForm.all_models = merged
+})
 
 const ratePresets = [
   { label: 'OpenAI Free', rpd: 200, rpm: 3, tpm: 40000 },
