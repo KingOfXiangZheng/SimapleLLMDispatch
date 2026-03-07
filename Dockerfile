@@ -20,9 +20,6 @@ COPY . .
 # Copy built frontend from Stage 1
 COPY --from=frontend-builder /app/public/dist /app/public/dist
 
-ENV PORT=3100
-ENV DB_PATH=/app/data/llm_dispatcher.db
-
 EXPOSE 3100
 VOLUME ["/app/data"]
 

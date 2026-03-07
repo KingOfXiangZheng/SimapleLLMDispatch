@@ -7,8 +7,8 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - .:/app
+      - ./:/app
     environment:
       - PORT=3100
-      - UPSTREAM_TIMEOUT=30
+      - UPSTREAM_TIMEOUT=15
     restart: unless-stopped
