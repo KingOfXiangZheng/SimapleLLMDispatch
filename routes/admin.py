@@ -43,14 +43,41 @@ def list_providers():
     return jsonify(ProviderDAO.get_all())
 
 
+@admin_bp.route("/providers/stats", methods=["GET"])
+def get_provider_stats():
+    """Return aggregate stats for providers."""
+    providers = ProviderDAO.get_all()
+    total = len(providers)
+    active = sum(1 for p in providers if p.get("is_active"))
+    today_requests = sum(p.get("current_requests_today", 0) for p in providers)
+    
+    model_set = set()
+    for p in providers:
+        # Use selected_models if available, otherwise models
+        models = p.get("selected_models") or p.get("models") or []
+        for m in models:
+            if isinstance(m, dict):
+                model_set.add(m["model"])
+            else:
+                model_set.add(m)
+    
+    return jsonify({
+        "total": total,
+        "active": active,
+        "today_requests": today_requests,
+        "total_models": len(model_set)
+    })
+
+
 @admin_bp.route("/models", methods=["GET"])
 def list_all_models():
     """Return all unique model names from all providers (union of models field)."""
     providers = ProviderDAO.get_all()
     model_set = set()
     for p in providers:
-        for m in (p.get("selected_models") or []):
-            model_set.add(m["model"])
+        if(p.get("is_active")):
+            for m in (p.get("selected_models") or []):
+                model_set.add(m["model"])
     return jsonify(sorted(model_set))
 
 
@@ -102,6 +129,15 @@ def fetch_models(pid):
     try:
         models = Scheduler.fetch_models(pid)
         return jsonify({"status": "success", "models": models})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/providers/<int:pid>/reset-health", methods=["POST"])
+def reset_provider_health(pid):
+    try:
+        ProviderDAO.reset_health(pid)
+        return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

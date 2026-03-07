@@ -45,6 +45,10 @@ export function useApi() {
     return api(`/admin/providers/${id}/quota`)
   }
 
+  async function resetProviderHealth(id) {
+    return api(`/admin/providers/${id}/reset-health`, { method: 'POST' })
+  }
+
   async function fetchProviderModels(id) {
     return api(`/admin/providers/${id}/fetch-models`, { method: 'POST' })
   }
@@ -102,12 +106,18 @@ export function useApi() {
     }
   }
 
+  async function loadProviderStats() {
+    return api('/admin/providers/stats')
+  }
+
   return {
     api,
     loadProviders,
+    loadProviderStats,
     saveProvider,
     deleteProvider,
     getProviderQuota,
+    resetProviderHealth,
     fetchProviderModels,
     fetchModelsFromApi,
     loadGroups,

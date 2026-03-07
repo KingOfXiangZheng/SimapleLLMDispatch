@@ -35,7 +35,20 @@
             <td style="font-weight:600">{{ g.name }}</td>
             <td><span class="badge badge-cyan">{{ g.alias }}</span></td>
             <td>
-              <span class="badge badge-accent" v-for="m in g.target_models" :key="m">{{ m }}</span>
+              <span 
+                class="badge badge-accent" 
+                v-for="m in (g.target_models || []).slice(0, 3)" 
+                :key="m"
+                style="margin-right:0.2rem"
+              >
+                {{ m }}
+              </span>
+              <span 
+                class="badge badge-yellow"
+                v-if="(g.target_models || []).length > 3"
+              >
+                +{{ g.target_models.length - 3 }}
+              </span>
             </td>
             <td>
               <span class="badge" :class="g.strategy === 'round_robin' ? 'badge-yellow' : 'badge-green'">

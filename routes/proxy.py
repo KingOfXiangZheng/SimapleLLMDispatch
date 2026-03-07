@@ -60,6 +60,7 @@ def _handle_chat(body: dict, attempt: int, excluded_ids: set):
             return _handle_normal(url, headers, upstream_body, provider, actual_model)
     except Exception as e:
         print(f"Provider {provider['name']} failed: {e}")
+        ProviderDAO.record_model_failure(provider["id"], actual_model)
         if attempt < MAX_FAILOVER_ATTEMPTS and len(candidates) > 1:
             excluded_ids.add(provider["id"])
             return _handle_chat(body, attempt + 1, excluded_ids)
@@ -68,7 +69,9 @@ def _handle_chat(body: dict, attempt: int, excluded_ids: set):
 
 def _handle_normal(url, headers, body, provider, model):
     resp = http_client.post(url, json=body, headers=headers, timeout=UPSTREAM_TIMEOUT)
+    resp.raise_for_status()
     data = resp.json()
+    ProviderDAO.record_model_success(provider["id"], model)
     Scheduler.record_usage(provider["id"], model, data.get("usage"))
     return jsonify(data), resp.status_code
 
@@ -118,6 +121,8 @@ def _handle_stream(url, headers, body, provider, model):
                         except Exception:
                             pass
         finally:
+            if stream_usage:
+                ProviderDAO.record_model_success(provider["id"], model)
             Scheduler.record_usage(provider["id"], model, stream_usage or None)
 
     return Response(

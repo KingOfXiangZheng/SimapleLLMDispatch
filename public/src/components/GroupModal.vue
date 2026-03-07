@@ -34,7 +34,10 @@
             v-for="p in providers" 
             :key="p.id" 
             class="provider-tag"
-            :class="{ 'provider-tag-selected': isProviderAllSelected(p) }"
+            :class="{ 
+              'provider-tag-used': isProviderUsed(p),
+              'provider-tag-all': isProviderAllSelected(p) 
+            }"
             @click="toggleProviderModels(p)"
             :title="isProviderAllSelected(p) ? '点击取消该供应商所有模型' : '点击添加该供应商所有模型'"
           >
@@ -112,10 +115,19 @@ function getProviderModelCount(provider) {
 
 function getProviderModels(provider) {
   const sm = provider.selected_models
-  if (!sm) return provider.selected_models.map(item => item.model) || []
-  if (!sm.length) return []
+  if (!sm || !sm.length) {
+    return provider.models || []
+  }
   if (typeof sm[0] === 'string') return sm
   return sm.map(s => s.model)
+}
+
+function isProviderUsed(provider) {
+  if (!props.initialForm) return false
+  const models = getProviderModels(provider)
+  if (!models.length) return false
+  const currentSet = props.initialForm.target_set
+  return models.some(m => currentSet.has(m))
 }
 
 function isProviderAllSelected(provider) {
@@ -216,21 +228,33 @@ function toggleGroupModel(m) {
 .provider-tag {
   display: inline-block;
   padding: 0.35rem 0.65rem;
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 0.8rem;
-  color: var(--accent);
+  color: var(--muted);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .provider-tag:hover {
-  background: rgba(99, 102, 241, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--dim);
 }
 
-.provider-tag-selected {
-  background: rgba(99, 102, 241, 0.4);
+.provider-tag-used {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.provider-tag-used:hover {
+  background: rgba(99, 102, 241, 0.25);
+  color: var(--accent);
+}
+
+.provider-tag-all {
+  border-width: 2px;
   font-weight: 600;
 }
 </style>

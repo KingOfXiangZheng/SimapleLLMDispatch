@@ -5,6 +5,7 @@
       <template v-if="tab === 'providers'">
         <ProvidersTab
           :providers="providers"
+          :stats="providerStats"
           :quota-detail="quotaDetail"
           :expanded-quota="expandedQuota"
           :paging="providerPaging"
@@ -16,6 +17,7 @@
           @loadPage="loadProviders"
           @toggleQuotaDetail="toggleQuotaDetail"
           @search="onProviderSearch"
+          @resetHealth="resetProviderHealth"
         />
       </template>
       <template v-if="tab === 'groups'">
@@ -79,8 +81,10 @@ const {
   getProviderQuota,
   fetchProviderModels,
   fetchModelsFromApi,
+  resetProviderHealth: apiResetProviderHealth,
   loadGroups: apiLoadGroups,
   loadAllModels: apiLoadAllModels,
+  loadProviderStats: apiLoadProviderStats,
   saveGroup: apiSaveGroup,
   deleteGroup: apiDeleteGroup,
   loadLogs: apiLoadLogs
@@ -91,6 +95,7 @@ const toastRef = ref(null)
 const providers = ref([])
 const providerPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 4 })
 const providerSearch = reactive({ name: '' })
+const providerStats = reactive({ total: 0, active: 0, today_requests: 0, total_models: 0 })
 const quotaDetail = reactive({})
 const expandedQuota = ref(null)
 const showProviderModal = ref(false)
@@ -168,6 +173,13 @@ async function loadProviders(page = 1) {
       getProviderQuota(p.id).then(d => { quotaDetail[p.id] = d }).catch(() => {})
     }
   } catch (e) { showToast(e.message, 'error') }
+}
+
+async function loadStats() {
+  try {
+    const data = await apiLoadProviderStats()
+    Object.assign(providerStats, data)
+  } catch (e) { console.error('Failed to load stats:', e) }
 }
 
 function onProviderSearch(filters) {
@@ -301,16 +313,24 @@ async function saveProvider() {
     if (editingProvider.value) await apiSaveProvider({ ...body, id: editingProvider.value.id })
     else await apiSaveProvider(body)
     showProviderModal.value = false
-    await loadProviders()
+    await Promise.all([loadProviders(), loadStats()])
     showToast('供应商已保存')
   } catch (e) { showToast(e.message, 'error') }
+}
+
+async function resetProviderHealth(p) {
+  try {
+    await apiResetProviderHealth(p.id)
+    await loadProviders()
+    showToast('健康状态已重置')
+  } catch (e) { showToast('重置失败: ' + e.message, 'error') }
 }
 
 async function deleteProvider(p) {
   if (!confirm(`确定删除供应商 "${p.name}"？`)) return
   try {
     await apiDeleteProvider(p.id)
-    await loadProviders()
+    await Promise.all([loadProviders(), loadStats()])
     showToast('已删除')
   } catch (e) { showToast(e.message, 'error') }
 }
@@ -416,7 +436,7 @@ async function deleteGroup(g) {
   } catch (e) { showToast(e.message, 'error') }
 }
 
-onMounted(() => { loadProviders(); loadGroups(); loadLogs() })
+onMounted(() => { loadProviders(); loadStats(); loadGroups(); loadLogs() })
 
 // Auto-refresh data when switching tabs
 watch(tab, (newTab) => {

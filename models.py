@@ -132,6 +132,69 @@ class ProviderDAO:
         conn.close()
 
     @staticmethod
+    def record_model_success(pid: int, model_name: str):
+        """Reset consecutive_failures to 0 for a specific model."""
+        conn = get_db()
+        provider = ProviderDAO.get_by_id(pid)
+        if not provider:
+            conn.close()
+            return
+        
+        sm = provider.get("selected_models", [])
+        updated = False
+        for m in sm:
+            if m.get("model") == model_name:
+                if m.get("consecutive_failures", 0) != 0:
+                    m["consecutive_failures"] = 0
+                    updated = True
+                break
+        
+        if updated:
+            conn.execute("UPDATE providers SET selected_models = ? WHERE id = ?", (json.dumps(sm), pid))
+            conn.commit()
+        conn.close()
+
+    @staticmethod
+    def record_model_failure(pid: int, model_name: str):
+        """Increment consecutive_failures for a specific model and record timestamp."""
+        conn = get_db()
+        provider = ProviderDAO.get_by_id(pid)
+        if not provider:
+            conn.close()
+            return
+
+        sm = provider.get("selected_models", [])
+        updated = False
+        for m in sm:
+            if m.get("model") == model_name:
+                m["consecutive_failures"] = m.get("consecutive_failures", 0) + 1
+                m["last_failure_time"] = datetime.utcnow().isoformat()
+                updated = True
+                break
+        
+        if updated:
+            conn.execute("UPDATE providers SET selected_models = ? WHERE id = ?", (json.dumps(sm), pid))
+            conn.commit()
+        conn.close()
+
+    @staticmethod
+    def reset_health(pid: int):
+        """Reset consecutive_failures for all models of a provider."""
+        conn = get_db()
+        provider = ProviderDAO.get_by_id(pid)
+        if not provider:
+            conn.close()
+            return
+
+        sm = provider.get("selected_models", [])
+        for m in sm:
+            m["consecutive_failures"] = 0
+        
+        conn.execute("UPDATE providers SET selected_models = ? WHERE id = ?", (json.dumps(sm), pid))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
     def _parse(row) -> dict:
         d = dict(row)
         d["models"] = json.loads(d.get("models") or "[]")

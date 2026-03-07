@@ -3,6 +3,7 @@
 from __future__ import annotations
 import json
 import random
+from datetime import datetime, timedelta
 from abc import ABC, abstractmethod
 
 import requests as http_client
@@ -208,6 +209,21 @@ class Scheduler:
                 m_total_tok = get_model_total_tokens(p, model)
                 if m_total_tok > 0 and UsageLogDAO.sum_tokens_by_model(p["id"], model) >= m_total_tok:
                     continue
+                
+                # Health check: skip if too many consecutive failures AND in cooldown
+                model_info = next((s for s in parse_selected_models(p) if s["model"] == model), None)
+                if model_info and model_info.get("consecutive_failures", 0) >= 3:
+                    last_failure_str = model_info.get("last_failure_time")
+                    if last_failure_str:
+                        try:
+                            last_failure = datetime.fromisoformat(last_failure_str)
+                            if datetime.utcnow() - last_failure < timedelta(minutes=5):
+                                continue # Still in cooldown
+                        except ValueError:
+                            continue # Parse error, safer to skip
+                    else:
+                        continue # No timestamp but high fails, assume disabled
+                    
                 results.append({"provider": p, "matched_model": model})
         return results
 

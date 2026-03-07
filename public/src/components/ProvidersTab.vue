@@ -21,13 +21,13 @@
 
     <StatsCards
       label1="供应商总数"
-      :value1="paging.total"
+      :value1="stats.total"
       label2="活跃"
-      :value2="providers.filter(p => p.is_active).length"
+      :value2="stats.active"
       label3="今日总请求"
-      :value3="providers.reduce((s, p) => s + p.current_requests_today, 0)"
+      :value3="stats.today_requests"
       label4="可用模型"
-      :value4="allModels.length"
+      :value4="stats.total_models"
     />
 
     <div class="card">
@@ -57,8 +57,10 @@
                 <span 
                   v-for="m in effectiveModelsWithRPD(p).slice(0, 3)" 
                   :key="m.model"
-                  class="badge badge-accent" 
+                  class="badge" 
+                  :class="m.consecutive_failures >= 3 ? 'badge-red' : 'badge-accent'"
                   style="margin-right:0.2rem"
+                  :title="m.consecutive_failures >= 3 ? `失败次数过高 (${m.consecutive_failures})，已停用` : ''"
                 >
                   {{ m.model }}
                   <template v-if="m.rpd"> · {{ m.rpd }}/d</template>
@@ -121,6 +123,13 @@
               </td>
               <td style="text-align:right">
                 <div class="actions" style="justify-content:flex-end">
+                  <button 
+                    class="btn btn-ghost btn-sm" 
+                    v-if="effectiveModelsWithRPD(p).some(m => m.consecutive_failures > 0)"
+                    @click="$emit('resetHealth', p)"
+                  >
+                    🩺 重置健康
+                  </button>
                   <button class="btn btn-ghost btn-sm" @click="$emit('edit', p)">编辑</button>
                   <button class="btn btn-danger btn-sm" @click="$emit('delete', p)">删除</button>
                 </div>
@@ -215,6 +224,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  stats: {
+    type: Object,
+    default: () => ({ total: 0, active: 0, today_requests: 0, total_models: 0 })
+  },
   quotaDetail: {
     type: Object,
     default: () => ({})
@@ -229,7 +242,7 @@ const props = defineProps({
   }
 })
 
-const $emit = defineEmits(['add', 'edit', 'delete', 'fetchModels', 'refreshQuota', 'toggleQuota', 'loadPage', 'toggleQuotaDetail', 'search'])
+const $emit = defineEmits(['add', 'edit', 'delete', 'fetchModels', 'resetHealth', 'refreshQuota', 'toggleQuota', 'loadPage', 'toggleQuotaDetail', 'search'])
 
 const searchName = ref('')
 
@@ -252,10 +265,10 @@ function effectiveModels(p) {
 
 function effectiveModelsWithRPD(p) {
   const sm = p.selected_models
-  if (!sm) return p.models.map(m => ({ model: m, rpd: 0 }))
+  if (!sm) return p.models.map(m => ({ model: m, rpd: 0, consecutive_failures: 0 }))
   if (!sm.length) return []
   if (typeof sm[0] === 'object') return sm
-  return sm.map(m => ({ model: m, rpd: 0 }))
+  return sm.map(m => ({ model: m, rpd: 0, consecutive_failures: 0 }))
 }
 
 const allModels = computed(() => {
