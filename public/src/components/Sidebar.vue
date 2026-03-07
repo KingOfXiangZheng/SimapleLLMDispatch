@@ -43,12 +43,14 @@
 
     <div class="sidebar-footer">
       <div class="endpoint-label">统一入口</div>
-      <div class="endpoint">http://localhost:3000/v1</div>
+      <div class="endpoint">{{ endpointUrl }}</div>
     </div>
   </nav>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 defineProps({
   tab: {
     type: String,
@@ -57,6 +59,10 @@ defineProps({
 })
 
 defineEmits(['update:tab'])
+
+const endpointUrl = computed(() => {
+  return `${window.location.origin}/v1`
+})
 </script>
 
 <style scoped>
