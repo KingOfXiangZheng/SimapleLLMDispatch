@@ -68,10 +68,18 @@ def _handle_chat(body: dict, attempt: int, excluded_ids: set):
         ProviderDAO.record_model_failure(provider["id"], actual_model)
         Scheduler.record_usage(provider["id"], actual_model, status_code=sc, error_message=error_msg)
         
-        if attempt < MAX_FAILOVER_ATTEMPTS and len(candidates) > 1:
-            excluded_ids.add(provider["id"])
+        excluded_ids.add(provider["id"])
+        # Re-check availability after excluding the failed provider
+        next_candidates = Scheduler.find_available(target_models, excluded_ids)
+        
+        if attempt < MAX_FAILOVER_ATTEMPTS and next_candidates:
+            print(f"Retrying failover (attempt {attempt+1})...")
             return _handle_chat(body, attempt + 1, excluded_ids)
-        return jsonify({"error": str(e)}), sc
+            
+        return jsonify({
+            "error": f"All fallback attempts failed. Last error from {provider['name']}: {error_msg}",
+            "failed_providers": list(excluded_ids)
+        }), sc
 
 
 def _handle_normal(url, headers, body, provider, model):
@@ -101,6 +109,7 @@ def _handle_stream(url, headers, body, provider, model):
         if first_chunk:
             # Check for silent failures (200 OK but error/abort in payload)
             text = first_chunk.decode("utf-8", errors="replace")
+            print(text)
             for line in text.split("\n"):
                 if line.startswith("data:") and line.strip() != "data: [DONE]":
                     try:
@@ -117,6 +126,7 @@ def _handle_stream(url, headers, body, provider, model):
 
     except StopIteration:
         first_chunk = None
+        raise RuntimeError("Provider returned an empty response body.")
     except Exception as e:
         # Re-raise so _handle_chat can catch it and perform failover
         raise e

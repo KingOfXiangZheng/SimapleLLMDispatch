@@ -174,7 +174,7 @@
                     <div 
                       v-for="q in quotaDetail[p.id].models" 
                       :key="q.model"
-                      style="padding:0.5rem 0.65rem;border-radius:6px;background:rgba(0,0,0,0.15)"
+                      style="padding:0.5rem 0.65rem;border-radius:6px;background:rgba(0,0,0,0.15);border:1px solid var(--border)"
                     >
                       <div 
                         style="font-size:0.8rem;margin-bottom:0.35rem;display:flex;align-items:center;justify-content:space-between;gap:0.4rem"
@@ -393,8 +393,9 @@ function toggleQuotaDetail(p) {
 
 .badge-disabled {
   background: rgba(255, 255, 255, 0.05) !important;
-  color: var(--dim) !important;
-  border: 1px dashed var(--border) !important;
+  color: #94a3b8 !important;
+  border: 1px dashed rgba(148, 163, 184, 0.3) !important;
   text-decoration: line-through;
+  opacity: 0.7;
 }
 </style>
