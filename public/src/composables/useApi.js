@@ -93,10 +93,11 @@ export function useApi() {
   }
 
   // Logs
-  async function loadLogs(page = 1, pageSize = 20, { providerName = '', model = '' } = {}) {
+  async function loadLogs(page = 1, pageSize = 20, { providerName = '', model = '', onlyErrors = false } = {}) {
     let url = `/admin/logs?page=${page}&page_size=${pageSize}`
     if (providerName) url += `&provider_name=${encodeURIComponent(providerName)}`
     if (model) url += `&model=${encodeURIComponent(model)}`
+    if (onlyErrors) url += `&only_errors=1`
     const data = await api(url)
     return {
       items: data.items,

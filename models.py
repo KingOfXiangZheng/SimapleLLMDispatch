@@ -142,7 +142,12 @@ class ProviderDAO:
         
         sm = provider.get("selected_models", [])
         updated = False
-        for m in sm:
+        for i, m in enumerate(sm):
+            # Normalize to dict if it's a string
+            if isinstance(m, str):
+                m = {"model": m, "rpd": 0, "rpm": 0}
+                sm[i] = m
+            
             if m.get("model") == model_name:
                 if m.get("consecutive_failures", 0) != 0:
                     m["consecutive_failures"] = 0
@@ -165,7 +170,12 @@ class ProviderDAO:
 
         sm = provider.get("selected_models", [])
         updated = False
-        for m in sm:
+        for i, m in enumerate(sm):
+            # Normalize to dict if it's a string
+            if isinstance(m, str):
+                m = {"model": m, "rpd": 0, "rpm": 0}
+                sm[i] = m
+
             if m.get("model") == model_name:
                 m["consecutive_failures"] = m.get("consecutive_failures", 0) + 1
                 m["last_failure_time"] = datetime.utcnow().isoformat()
@@ -282,15 +292,16 @@ class GroupDAO:
 
 class UsageLogDAO:
     @staticmethod
-    def insert(provider_id: int, model: str, usage: dict | None = None):
+    def insert(provider_id: int, model: str, usage: dict | None = None,
+               status_code: int = 200, error_message: str | None = None):
         conn = get_db()
         prompt = (usage or {}).get("prompt_tokens", 0)
         completion = (usage or {}).get("completion_tokens", 0)
         total = (usage or {}).get("total_tokens", 0)
         conn.execute(
-            """INSERT INTO usage_logs (provider_id, model, prompt_tokens, completion_tokens, total_tokens)
-               VALUES (?,?,?,?,?)""",
-            (provider_id, model, prompt, completion, total)
+            """INSERT INTO usage_logs (provider_id, model, prompt_tokens, completion_tokens, total_tokens, status_code, error_message)
+               VALUES (?,?,?,?,?,?,?)""",
+            (provider_id, model, prompt, completion, total, status_code, error_message)
         )
         conn.commit()
         conn.close()
@@ -309,7 +320,8 @@ class UsageLogDAO:
 
     @staticmethod
     def get_page(page: int = 1, page_size: int = 20,
-                 provider_name: str = "", model: str = "") -> dict:
+                 provider_name: str = "", model: str = "",
+                 only_errors: bool = False) -> dict:
         conn = get_db()
         where_clauses = []
         params = []
@@ -319,6 +331,8 @@ class UsageLogDAO:
         if model:
             where_clauses.append("l.model LIKE ?")
             params.append(f"%{model}%")
+        if only_errors:
+            where_clauses.append("l.status_code != 200")
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
         total = conn.execute(
@@ -350,6 +364,8 @@ class UsageLogDAO:
         d["total_tokens"] = d.get("total_tokens") or 0
         d["provider_name"] = d.get("provider_name") or "N/A"
         d["timestamp"] = d.get("timestamp") or ""
+        d["status_code"] = d.get("status_code") or 200
+        d["error_message"] = d.get("error_message") or ""
         return d
 
     @staticmethod

@@ -58,17 +58,11 @@
                   v-for="m in effectiveModelsWithRPD(p).slice(0, 3)" 
                   :key="m.model"
                   class="badge" 
-                  :class="m.consecutive_failures >= 3 ? (isModelInCooldown(m) ? 'badge-yellow' : 'badge-red') : 'badge-accent'"
+                  :class="m.consecutive_failures >= 3 ? (isModelInCooldown(m) ? 'badge-yellow' : 'badge-red') : (m.consecutive_failures > 0 ? 'badge-yellow' : 'badge-accent')"
                   style="margin-right:0.2rem"
                   :title="getHealthTooltip(m)"
                 >
                   {{ m.model }}
-                  <template v-if="m.consecutive_failures >= 3 && isModelInCooldown(m)">
-                    (⏳ {{ getCooldownRemaining(m) }}s)
-                  </template>
-                  <template v-else-if="m.consecutive_failures >= 3">
-                    (🩹 可重试)
-                  </template>
                   <template v-if="m.rpd"> · {{ m.rpd }}/d</template>
                   <template v-if="m.rpm"> · {{ m.rpm }}/m</template>
                 </span>
@@ -177,10 +171,22 @@
                       style="padding:0.5rem 0.65rem;border-radius:6px;background:rgba(0,0,0,0.15)"
                     >
                       <div 
-                        style="font-size:0.8rem;margin-bottom:0.35rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-                        :title="q.model"
+                        style="font-size:0.8rem;margin-bottom:0.35rem;display:flex;align-items:center;justify-content:space-between;gap:0.4rem"
                       >
-                        {{ q.model }}
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="q.model">
+                          {{ q.model }}
+                        </span>
+                        <span 
+                          v-if="q.consecutive_failures > 0"
+                          class="badge"
+                          :class="q.consecutive_failures >= 3 ? (isModelInCooldown(q) ? 'badge-yellow' : 'badge-red') : 'badge-yellow'"
+                          style="font-size:0.75rem;padding:0.25rem 0.6rem;margin:0"
+                          :title="getHealthTooltip(q)"
+                        >
+                          <template v-if="isModelInCooldown(q)">⏳ 冷却中 ({{ getCooldownRemaining(q) }}s)</template>
+                          <template v-else-if="q.consecutive_failures >= 3">🩹 准备重试</template>
+                          <template v-else>⚠️ 异常 ({{ q.consecutive_failures }}次失败)</template>
+                        </span>
                       </div>
                       <QuotaBar label="RPD" :current="q.used_today" :max="q.rpd" color="green" compact />
                       <QuotaBar label="RPM" :current="q.rpm_current" :max="q.rpm" color="cyan" compact />
@@ -221,9 +227,22 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import StatsCards from './StatsCards.vue'
 import QuotaBar from './QuotaBar.vue'
+
+const now = ref(Date.now())
+let timer = null
+
+onMounted(() => {
+  timer = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 
 const props = defineProps({
   providers: {
@@ -280,20 +299,21 @@ function effectiveModelsWithRPD(p) {
 function isModelInCooldown(m) {
   if (!m.last_failure_time || m.consecutive_failures < 3) return false
   const failTime = new Date(m.last_failure_time + 'Z').getTime()
-  const now = new Date().getTime()
-  return (now - failTime) < 300000 // 5 minutes
+  return (now.value - failTime) < 300000 // 5 minutes
 }
 
 function getCooldownRemaining(m) {
   if (!m.last_failure_time) return 0
   const failTime = new Date(m.last_failure_time + 'Z').getTime()
-  const now = new Date().getTime()
-  const remain = Math.max(0, 300 - Math.floor((now - failTime) / 1000))
+  const remain = Math.max(0, 300 - Math.floor((now.value - failTime) / 1000))
   return remain
 }
 
 function getHealthTooltip(m) {
-  if (m.consecutive_failures < 3) return ''
+  if (m.consecutive_failures <= 0) return ''
+  if (m.consecutive_failures < 3) {
+    return `检测到 ${m.consecutive_failures} 次连续失败，满 3 次将暂时停用`
+  }
   if (isModelInCooldown(m)) {
     return `失败次数过高 (${m.consecutive_failures})，进入 5 分钟冷却期，剩余 ${getCooldownRemaining(m)} 秒`
   }

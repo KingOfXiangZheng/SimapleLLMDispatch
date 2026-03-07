@@ -233,9 +233,10 @@ class Scheduler:
         return strategy.select(candidates, model_key or "_global_")
 
     @staticmethod
-    def record_usage(provider_id: int, model: str, usage: dict | None = None):
+    def record_usage(provider_id: int, model: str, usage: dict | None = None,
+                     status_code: int = 200, error_message: str | None = None):
         ProviderDAO.increment_requests(provider_id)
         total = (usage or {}).get("total_tokens", 0)
         if total > 0:
             rate_limiter.record_tokens(provider_id, total)
-        UsageLogDAO.insert(provider_id, model, usage)
+        UsageLogDAO.insert(provider_id, model, usage, status_code, error_message)

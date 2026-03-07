@@ -243,8 +243,10 @@ def list_logs():
     page_size = request.args.get("page_size", 20, type=int)
     provider_name = request.args.get("provider_name", "", type=str).strip()
     model = request.args.get("model", "", type=str).strip()
+    only_errors = request.args.get("only_errors") == "1"
+    
     if page > 0:
-        return jsonify(UsageLogDAO.get_page(page, page_size, provider_name, model))
+        return jsonify(UsageLogDAO.get_page(page, page_size, provider_name, model, only_errors))
     # Legacy: no page param → return flat array
     limit = request.args.get("limit", 100, type=int)
     return jsonify(UsageLogDAO.get_recent(limit))

@@ -22,7 +22,11 @@
         style="width:180px"
       >
       <button class="btn btn-primary btn-sm" @click="doSearch">搜索</button>
-      <button class="btn btn-ghost btn-sm" v-if="searchProvider || searchModel" @click="clearSearch">清除</button>
+      <label class="flex items-center gap-1 cursor-pointer" style="margin-left:auto;font-size:0.85rem">
+        <input type="checkbox" v-model="onlyErrors" @change="doSearch">
+        仅显示错误
+      </label>
+      <button class="btn btn-ghost btn-sm" v-if="searchProvider || searchModel || onlyErrors" @click="clearSearch">清除</button>
     </div>
 
     <div class="card">
@@ -30,24 +34,40 @@
         <thead>
           <tr>
             <th>时间</th>
+            <th>状态</th>
             <th>供应商</th>
             <th>模型</th>
-            <th>Prompt Tokens</th>
-            <th>Completion Tokens</th>
+            <th>Prompt</th>
+            <th>Comp.</th>
             <th>Total</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="l in logs" :key="l.id">
-            <td style="color:var(--dim);font-size:0.8rem">{{ l.timestamp }}</td>
-            <td>{{ l.provider_name || 'N/A' }}</td>
-            <td><span class="badge badge-accent">{{ l.model }}</span></td>
-            <td>{{ (l.prompt_tokens || 0).toLocaleString() }}</td>
-            <td>{{ (l.completion_tokens || 0).toLocaleString() }}</td>
-            <td style="font-weight:600">{{ (l.total_tokens || 0).toLocaleString() }}</td>
-          </tr>
+          <template v-for="l in logs" :key="l.id">
+            <tr>
+              <td style="color:var(--dim);font-size:0.8rem;white-space:nowrap">{{ l.timestamp }}</td>
+              <td>
+                <span :class="l.status_code === 200 ? 'badge badge-accent' : 'badge badge-red'" 
+                      :title="l.error_message">
+                  {{ l.status_code }}
+                </span>
+              </td>
+              <td>{{ l.provider_name || 'N/A' }}</td>
+              <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis" :title="l.model">
+                <span class="badge badge-ghost" style="font-size:0.75rem">{{ l.model }}</span>
+              </td>
+              <td>{{ (l.prompt_tokens || 0).toLocaleString() }}</td>
+              <td>{{ (l.completion_tokens || 0).toLocaleString() }}</td>
+              <td style="font-weight:600">{{ (l.total_tokens || 0).toLocaleString() }}</td>
+            </tr>
+            <tr v-if="l.status_code !== 200" class="error-detail-row">
+              <td colspan="7">
+                <div class="error-msg">❌ {{ l.error_message }}</div>
+              </td>
+            </tr>
+          </template>
           <tr v-if="!logs.length">
-            <td colspan="6" class="empty-row">暂无日志</td>
+            <td colspan="7" class="empty-row">暂无日志</td>
           </tr>
         </tbody>
       </table>
@@ -90,15 +110,17 @@ const emit = defineEmits(['refresh', 'loadPage', 'search'])
 
 const searchProvider = ref('')
 const searchModel = ref('')
+const onlyErrors = ref(false)
 
 function doSearch() {
-  emit('search', { providerName: searchProvider.value, model: searchModel.value })
+  emit('search', { providerName: searchProvider.value, model: searchModel.value, onlyErrors: onlyErrors.value })
 }
 
 function clearSearch() {
   searchProvider.value = ''
   searchModel.value = ''
-  emit('search', { providerName: '', model: '' })
+  onlyErrors.value = false
+  emit('search', { providerName: '', model: '', onlyErrors: false })
 }
 
 function pageRange(paging) {
@@ -142,5 +164,20 @@ const pageNums = computed(() => pageRange(props.paging))
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 1.25rem;
+}
+
+.error-detail-row td {
+  padding-top: 0 !important;
+  border-top: none !important;
+}
+
+.error-msg {
+  background: #fdf2f2;
+  color: #9b1c1c;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  word-break: break-all;
 }
 </style>

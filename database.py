@@ -45,7 +45,8 @@ def init_db():
             completion_tokens INTEGER DEFAULT 0,
             total_tokens INTEGER DEFAULT 0,
             timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-            status_code INTEGER
+            status_code INTEGER,
+            error_message TEXT
         );
 
         CREATE INDEX IF NOT EXISTS idx_usage_logs_provider_ts
@@ -75,5 +76,8 @@ def _migrate(conn: sqlite3.Connection):
 
     if not _has_column(conn, "model_groups", "strategy"):
         conn.execute("ALTER TABLE model_groups ADD COLUMN strategy TEXT DEFAULT 'weighted_random'")
+
+    if not _has_column(conn, "usage_logs", "error_message"):
+        conn.execute("ALTER TABLE usage_logs ADD COLUMN error_message TEXT")
 
     conn.commit()

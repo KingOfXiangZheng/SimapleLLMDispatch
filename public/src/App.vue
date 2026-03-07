@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import ProvidersTab from './components/ProvidersTab.vue'
 import GroupsTab from './components/GroupsTab.vue'
@@ -144,7 +144,7 @@ const gForm = reactive({
 
 const logs = ref([])
 const logPaging = reactive({ page: 1, total: 0, total_pages: 1, page_size: 10 })
-const logSearch = reactive({ providerName: '', model: '' })
+const logSearch = reactive({ providerName: '', model: '', onlyErrors: false })
 
 function showToast(msg, type = 'success') {
   if (toastRef.value) toastRef.value.showToast(msg, type)
@@ -436,7 +436,21 @@ async function deleteGroup(g) {
   } catch (e) { showToast(e.message, 'error') }
 }
 
-onMounted(() => { loadProviders(); loadStats(); loadGroups(); loadLogs() })
+let autoRefreshTimer = null
+
+onMounted(() => { 
+  loadProviders(); loadStats(); loadGroups(); loadLogs();
+  autoRefreshTimer = setInterval(() => {
+    if (tab.value === 'providers') {
+      loadProviders(providerPaging.page);
+      loadStats();
+    }
+  }, 10000)
+})
+
+onUnmounted(() => {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer)
+})
 
 // Auto-refresh data when switching tabs
 watch(tab, (newTab) => {
