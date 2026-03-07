@@ -118,6 +118,10 @@ def _handle_stream(url, headers, body, provider, model):
                         # Check for top-level or choice-level error
                         if parsed.get("error") or (choices and choices[0].get("delta", {}).get("error")):
                             raise RuntimeError(f"Provider returned error in stream: {line[5:]}")
+                        if parsed.get("usage"):
+                            stream_usage = parsed["usage"]
+                            if stream_usage["completion_tokens"]==0:
+                                raise RuntimeError(f"Provider returned completion_tokens 0")
                     except (json.JSONDecodeError, KeyError):
                         pass
 
