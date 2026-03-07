@@ -58,11 +58,17 @@
                   v-for="m in effectiveModelsWithRPD(p).slice(0, 3)" 
                   :key="m.model"
                   class="badge" 
-                  :class="m.consecutive_failures >= 3 ? 'badge-red' : 'badge-accent'"
+                  :class="m.consecutive_failures >= 3 ? (isModelInCooldown(m) ? 'badge-yellow' : 'badge-red') : 'badge-accent'"
                   style="margin-right:0.2rem"
-                  :title="m.consecutive_failures >= 3 ? `失败次数过高 (${m.consecutive_failures})，已停用` : ''"
+                  :title="getHealthTooltip(m)"
                 >
                   {{ m.model }}
+                  <template v-if="m.consecutive_failures >= 3 && isModelInCooldown(m)">
+                    (⏳ {{ getCooldownRemaining(m) }}s)
+                  </template>
+                  <template v-else-if="m.consecutive_failures >= 3">
+                    (🩹 可重试)
+                  </template>
                   <template v-if="m.rpd"> · {{ m.rpd }}/d</template>
                   <template v-if="m.rpm"> · {{ m.rpm }}/m</template>
                 </span>
@@ -265,10 +271,33 @@ function effectiveModels(p) {
 
 function effectiveModelsWithRPD(p) {
   const sm = p.selected_models
-  if (!sm) return p.models.map(m => ({ model: m, rpd: 0, consecutive_failures: 0 }))
+  if (!sm) return p.models.map(m => ({ model: m, rpd: 0, consecutive_failures: 0, last_failure_time: null }))
   if (!sm.length) return []
   if (typeof sm[0] === 'object') return sm
-  return sm.map(m => ({ model: m, rpd: 0, consecutive_failures: 0 }))
+  return sm.map(m => ({ model: m, rpd: 0, consecutive_failures: 0, last_failure_time: null }))
+}
+
+function isModelInCooldown(m) {
+  if (!m.last_failure_time || m.consecutive_failures < 3) return false
+  const failTime = new Date(m.last_failure_time + 'Z').getTime()
+  const now = new Date().getTime()
+  return (now - failTime) < 300000 // 5 minutes
+}
+
+function getCooldownRemaining(m) {
+  if (!m.last_failure_time) return 0
+  const failTime = new Date(m.last_failure_time + 'Z').getTime()
+  const now = new Date().getTime()
+  const remain = Math.max(0, 300 - Math.floor((now - failTime) / 1000))
+  return remain
+}
+
+function getHealthTooltip(m) {
+  if (m.consecutive_failures < 3) return ''
+  if (isModelInCooldown(m)) {
+    return `失败次数过高 (${m.consecutive_failures})，进入 5 分钟冷却期，剩余 ${getCooldownRemaining(m)} 秒`
+  }
+  return `失败次数过高 (${m.consecutive_failures})，下次请求将尝试恢复`
 }
 
 const allModels = computed(() => {
