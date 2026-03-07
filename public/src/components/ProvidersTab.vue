@@ -193,6 +193,9 @@
                       <QuotaBar label="TPM" :current="q.tpm_current || 0" :max="q.tpm" color="yellow" compact />
                       <QuotaBar label="总调" :current="q.total_requests_current || 0" :max="q.total_requests" color="green" compact />
                       <QuotaBar label="总T" :current="q.total_tokens_current || 0" :max="q.total_tokens" color="accent-light" compact />
+                      <div v-if="q.interval > 0" style="font-size:0.7rem;color:var(--dim);margin-top:0.25rem;text-align:right">
+                        ⏱️ 最小间隔: {{ q.interval }}s
+                      </div>
                     </div>
                   </div>
                   <div v-else style="font-size:0.8rem;color:var(--muted)">无已选模型</div>

@@ -133,7 +133,7 @@ class ProviderDAO:
 
     @staticmethod
     def record_model_success(pid: int, model_name: str):
-        """Reset consecutive_failures to 0 for a specific model."""
+        """Reset consecutive_failures to 0 for a specific model and record last_success_time."""
         conn = get_db()
         provider = ProviderDAO.get_by_id(pid)
         if not provider:
@@ -149,9 +149,10 @@ class ProviderDAO:
                 sm[i] = m
             
             if m.get("model") == model_name:
+                m["last_success_time"] = datetime.utcnow().isoformat()
                 if m.get("consecutive_failures", 0) != 0:
                     m["consecutive_failures"] = 0
-                    updated = True
+                updated = True
                 break
         
         if updated:

@@ -212,17 +212,31 @@ class Scheduler:
                 
                 # Health check: skip if too many consecutive failures AND in cooldown
                 model_info = next((s for s in parse_selected_models(p) if s["model"] == model), None)
-                if model_info and model_info.get("consecutive_failures", 0) >= 3:
-                    last_failure_str = model_info.get("last_failure_time")
-                    if last_failure_str:
-                        try:
-                            last_failure = datetime.fromisoformat(last_failure_str)
-                            if datetime.utcnow() - last_failure < timedelta(minutes=5):
-                                continue # Still in cooldown
-                        except ValueError:
-                            continue # Parse error, safer to skip
-                    else:
-                        continue # No timestamp but high fails, assume disabled
+                if model_info:
+                    # Interval check
+                    interval = model_info.get("interval", 0)
+                    if interval > 0:
+                        last_success_str = model_info.get("last_success_time")
+                        if last_success_str:
+                            try:
+                                last_success = datetime.fromisoformat(last_success_str)
+                                if datetime.utcnow() - last_success < timedelta(seconds=interval):
+                                    continue # Still in interval wait period
+                            except ValueError:
+                                pass # Ignore parse errors for interval
+                    
+                    # Cooldown check
+                    if model_info.get("consecutive_failures", 0) >= 3:
+                        last_failure_str = model_info.get("last_failure_time")
+                        if last_failure_str:
+                            try:
+                                last_failure = datetime.fromisoformat(last_failure_str)
+                                if datetime.utcnow() - last_failure < timedelta(minutes=5):
+                                    continue # Still in cooldown
+                            except ValueError:
+                                continue # Parse error, safer to skip
+                        else:
+                            continue # No timestamp but high fails, assume disabled
                     
                 results.append({"provider": p, "matched_model": model})
         return results

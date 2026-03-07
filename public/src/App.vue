@@ -121,6 +121,7 @@ const pForm = reactive({
   model_tpm: {},
   model_total_requests: {},
   model_total_tokens: {},
+  model_interval: {},
   is_active: true,
   _fetching: false
 })
@@ -222,6 +223,7 @@ function resetPForm() {
     model_search: '', selected_set: new Set(),
     model_rpd: {}, model_rpm: {}, model_tpm: {},
     model_total_requests: {}, model_total_tokens: {},
+    model_interval: {},
     is_active: true, _fetching: false
   })
 }
@@ -245,19 +247,21 @@ function openProviderModal(p = null) {
     const sm = p.selected_models
     if (sm != null && sm.length && typeof sm[0] === 'object') {
       pForm.selected_set = new Set(sm.map(s => s.model))
-      const rpd = {}, rpm = {}, tpm = {}, tr = {}, tt = {}
+      const rpd = {}, rpm = {}, tpm = {}, tr = {}, tt = {}, iv = {}
       sm.forEach(s => {
         rpd[s.model] = s.rpd || 0
         rpm[s.model] = s.rpm || 0
         tpm[s.model] = s.tpm || 0
         tr[s.model] = s.total_requests || 0
         tt[s.model] = s.total_tokens || 0
+        iv[s.model] = s.interval || 0
       })
       pForm.model_rpd = rpd
       pForm.model_rpm = rpm
       pForm.model_tpm = tpm
       pForm.model_total_requests = tr
       pForm.model_total_tokens = tt
+      pForm.model_interval = iv
     } else if (sm != null && sm.length) {
       pForm.selected_set = new Set(sm)
     } else if (sm == null) {
@@ -297,7 +301,8 @@ async function saveProvider() {
     rpm: parseInt(pForm.model_rpm[m]) || 0,
     tpm: parseInt(pForm.model_tpm[m]) || 0,
     total_requests: parseInt(pForm.model_total_requests[m]) || 0,
-    total_tokens: parseInt(pForm.model_total_tokens[m]) || 0
+    total_tokens: parseInt(pForm.model_total_tokens[m]) || 0,
+    interval: parseInt(pForm.model_interval[m]) || 0
   }))
 
   const body = {

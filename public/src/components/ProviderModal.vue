@@ -127,7 +127,7 @@
               </span>
             </div>
             <div v-if="initialForm.selected_set.has(m)"
-                style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:rgba(0,0,0,0.15)"
+                style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:rgba(0,0,0,0.15)"
             >
               <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
                 <label style="font-size:0.65rem;color:var(--muted)">RPD</label>
@@ -176,6 +176,16 @@
                   min="0" 
                   :value="initialForm.model_total_tokens[m] || 0"
                   @input="initialForm.model_total_tokens[m] = parseInt($event.target.value) || 0"
+                  style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
+                >
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+                <label style="font-size:0.65rem;color:var(--muted)">间隔 (s)</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  :value="initialForm.model_interval[m] || 0"
+                  @input="initialForm.model_interval[m] = parseInt($event.target.value) || 0"
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>

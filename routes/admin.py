@@ -172,6 +172,7 @@ def provider_quota(pid):
                 "tpm": tpm, "tpm_current": tpm_current,
                 "total_requests": total_requests, "total_requests_current": total_requests_current,
                 "total_tokens": total_tokens, "total_tokens_current": total_tokens_current,
+                "interval": (entry.get("interval", 0) or 0) if entry else 0,
             })
         provider_rpm = provider.get("max_rpm", 0) or 0
         provider_rpm_current = _rate_limiter.get_provider_rpm_current(provider["id"])
