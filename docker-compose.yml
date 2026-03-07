@@ -9,6 +9,6 @@ services:
     volumes:
       - .:/app
     environment:
-      - PORT=3000
+      - PORT=3100
       - UPSTREAM_TIMEOUT=30
     restart: unless-stopped
