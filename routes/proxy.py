@@ -68,12 +68,10 @@ def _handle_chat(body: dict, attempt: int, excluded_ids: set):
         ProviderDAO.record_model_failure(provider["id"], actual_model)
         Scheduler.record_usage(provider["id"], actual_model, status_code=sc, error_message=error_msg)
         
-        excluded_ids.add(provider["id"])
-        # Re-check availability after excluding the failed provider
-        next_candidates = Scheduler.find_available(target_models, excluded_ids)
-        
-        if attempt < MAX_FAILOVER_ATTEMPTS and next_candidates:
-            print(f"Retrying failover (attempt {attempt+1})...")
+        #excluded_ids.add(provider["id"])
+
+        if attempt < MAX_FAILOVER_ATTEMPTS:
+            print(f"Retrying failover (attempt {attempt+1})...excluded_ids {excluded_ids}")
             return _handle_chat(body, attempt + 1, excluded_ids)
             
         return jsonify({
@@ -109,7 +107,6 @@ def _handle_stream(url, headers, body, provider, model):
         if first_chunk:
             # Check for silent failures (200 OK but error/abort in payload)
             text = first_chunk.decode("utf-8", errors="replace")
-            print(text)
             for line in text.split("\n"):
                 if line.startswith("data:") and line.strip() != "data: [DONE]":
                     try:

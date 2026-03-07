@@ -121,9 +121,10 @@ const pForm = reactive({
   model_tpm: {},
   model_total_requests: {},
   model_total_tokens: {},
-  model_interval: {},
+  model_interval: {},   // modelName -> intervalSeconds
+  model_cooldown: {},   // modelName -> cooldownSeconds
   model_meta: {},
-  model_enabled: {},
+  model_enabled: {},    // modelName -> boolean
   is_active: true,
   _fetching: false
 })
@@ -226,6 +227,7 @@ function resetPForm() {
     model_rpd: {}, model_rpm: {}, model_tpm: {},
     model_total_requests: {}, model_total_tokens: {},
     model_interval: {},
+    model_cooldown: {},
     model_meta: {},
     model_enabled: {},
     is_active: true, _fetching: false
@@ -251,7 +253,7 @@ function openProviderModal(p = null) {
     const sm = p.selected_models
     if (sm != null && sm.length && typeof sm[0] === 'object') {
       pForm.selected_set = new Set(sm.map(s => s.model))
-      const rpd = {}, rpm = {}, tpm = {}, tr = {}, tt = {}, iv = {}, meta = {}, enabled = {}
+      const rpd = {}, rpm = {}, tpm = {}, tr = {}, tt = {}, iv = {}, cooldown = {}, meta = {}, enabled = {}
       sm.forEach(s => {
         rpd[s.model] = s.rpd || 0
         rpm[s.model] = s.rpm || 0
@@ -259,6 +261,7 @@ function openProviderModal(p = null) {
         tr[s.model] = s.total_requests || 0
         tt[s.model] = s.total_tokens || 0
         iv[s.model] = s.interval || 0
+        cooldown[s.model] = s.cooldown || 300 // Added cooldown
         enabled[s.model] = s.enabled !== false // Default to true
         
         // Explicitly preserve health and timestamp metadata
@@ -274,6 +277,7 @@ function openProviderModal(p = null) {
       pForm.model_total_requests = tr
       pForm.model_total_tokens = tt
       pForm.model_interval = iv
+      pForm.model_cooldown = cooldown // Assigned cooldown
       pForm.model_meta = meta
       pForm.model_enabled = enabled
     } else if (sm != null && sm.length) {
@@ -317,6 +321,7 @@ async function saveProvider() {
     total_requests: parseInt(pForm.model_total_requests[m]) || 0,
     total_tokens: parseInt(pForm.model_total_tokens[m]) || 0,
     interval: parseInt(pForm.model_interval[m]) || 0,
+    cooldown: parseInt(pForm.model_cooldown[m]) || 300, // Added cooldown
     enabled: pForm.model_enabled[m] !== false,
     consecutive_failures: pForm.model_meta[m]?.consecutive_failures || 0,
     last_failure_time: pForm.model_meta[m]?.last_failure_time || null,

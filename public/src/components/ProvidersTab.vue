@@ -206,11 +206,19 @@
                       <QuotaBar label="TPM" :current="q.tpm_current || 0" :max="q.tpm" color="yellow" compact />
                       <QuotaBar label="总调" :current="q.total_requests_current || 0" :max="q.total_requests" color="green" compact />
                       <QuotaBar label="总T" :current="q.total_tokens_current || 0" :max="q.total_tokens" color="accent-light" compact />
-                      <div v-if="q.interval > 0" 
-                           style="margin-top:0.4rem; padding: 0.2rem 0.4rem; border-radius: 4px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); font-size: 0.68rem; color: var(--accent-light); display: inline-flex; align-items: center; gap: 4px;"
-                      >
-                        ⏱️ 最小请求间隔: {{ q.interval }}s
-                      </div>
+                       <div v-if="q.interval > 0 || (q.cooldown && q.cooldown !== 300)" 
+                            style="margin-top:0.4rem; display: flex; flex-wrap: wrap; gap: 4px;">
+                         <div v-if="q.interval > 0" 
+                              style="padding: 0.2rem 0.4rem; border-radius: 4px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); font-size: 0.68rem; color: var(--accent-light); display: inline-flex; align-items: center; gap: 4px;"
+                         >
+                           ⏱️ 间隔: {{ q.interval }}s
+                         </div>
+                         <div v-if="q.cooldown && q.cooldown !== 300"
+                              style="padding: 0.2rem 0.4rem; border-radius: 4px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); font-size: 0.68rem; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;"
+                         >
+                           ❄️ 冷却: {{ q.cooldown }}s
+                         </div>
+                       </div>
                     </div>
                   </div>
                   <div v-else style="font-size:0.8rem;color:var(--muted)">无已选模型</div>
@@ -317,25 +325,28 @@ function effectiveModelsWithRPD(p) {
 function isModelInCooldown(m) {
   if (!m.last_failure_time || m.consecutive_failures < 3) return false
   const failTime = new Date(m.last_failure_time + 'Z').getTime()
-  return (now.value - failTime) < 300000 // 5 minutes
+  const cooldownSecs = m.cooldown || 300
+  return (now.value - failTime) < (cooldownSecs * 1000)
 }
 
 function getCooldownRemaining(m) {
   if (!m.last_failure_time) return 0
   const failTime = new Date(m.last_failure_time + 'Z').getTime()
-  const remain = Math.max(0, 300 - Math.floor((now.value - failTime) / 1000))
-  return remain
+  const cooldownSecs = m.cooldown || 300
+  const elapsed = Math.floor((now.value - failTime) / 1000)
+  return Math.max(0, cooldownSecs - elapsed)
 }
 
 function getHealthTooltip(m) {
-  if (m.consecutive_failures <= 0) return ''
-  if (m.consecutive_failures < 3) {
-    return `检测到 ${m.consecutive_failures} 次连续失败，满 3 次将暂时停用`
+  if (m.enabled === false) return '手动禁用'
+  if (m.consecutive_failures >= 3) {
+    if (isModelInCooldown(m)) {
+      return `冷却中: 剩余 ${getCooldownRemaining(m)} 秒 (总计: ${m.cooldown || 300} 秒)`
+    }
+    return '异常 (准备重试)'
   }
-  if (isModelInCooldown(m)) {
-    return `失败次数过高 (${m.consecutive_failures})，进入 5 分钟冷却期，剩余 ${getCooldownRemaining(m)} 秒`
-  }
-  return `失败次数过高 (${m.consecutive_failures})，下次请求将尝试恢复`
+  if (m.consecutive_failures > 0) return `检测到 ${m.consecutive_failures} 次连续失败`
+  return '健康'
 }
 
 const allModels = computed(() => {

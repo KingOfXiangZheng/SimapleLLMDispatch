@@ -129,9 +129,9 @@
               </span>
             </div>
             <div v-if="initialForm.selected_set.has(m)"
-                style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:rgba(0,0,0,0.15)"
+                style="display:flex;flex-wrap:wrap;gap:12px 8px;padding:12px;border-top:1px solid var(--border);background:rgba(0,0,0,0.15)"
             >
-              <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+              <div style="flex:1;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:0.15rem">
                 <label style="font-size:0.65rem;color:var(--muted)">RPD</label>
                 <input 
                   type="number" 
@@ -141,7 +141,7 @@
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+              <div style="flex:1;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:0.15rem">
                 <label style="font-size:0.65rem;color:var(--muted)">RPM</label>
                 <input 
                   type="number" 
@@ -151,7 +151,7 @@
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+              <div style="flex:1;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:0.15rem">
                 <label style="font-size:0.65rem;color:var(--muted)">TPM</label>
                 <input 
                   type="number" 
@@ -161,7 +161,7 @@
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+              <div style="flex:1;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:0.15rem">
                 <label style="font-size:0.65rem;color:var(--muted)">总调用</label>
                 <input 
                   type="number" 
@@ -171,7 +171,7 @@
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+              <div style="flex:1;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:0.15rem">
                 <label style="font-size:0.65rem;color:var(--muted)">总Token</label>
                 <input 
                   type="number" 
@@ -181,13 +181,23 @@
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+              <div style="flex:1;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:0.15rem">
                 <label style="font-size:0.65rem;color:var(--muted)">间隔 (s)</label>
                 <input 
                   type="number" 
                   min="0" 
                   :value="initialForm.model_interval[m] || 0"
                   @input="initialForm.model_interval[m] = parseInt($event.target.value) || 0"
+                  style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
+                >
+              </div>
+              <div style="flex:1;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:0.15rem">
+                <label style="font-size:0.65rem;color:var(--muted)">冷却 (s)</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  :value="initialForm.model_cooldown[m] || 300"
+                  @input="initialForm.model_cooldown[m] = parseInt($event.target.value) || 300"
                   style="width:100%;padding:0.3rem 0.25rem;font-size:0.78rem;text-align:center"
                 >
               </div>

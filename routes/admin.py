@@ -172,6 +172,7 @@ def provider_quota(pid):
                 "tpm": tpm, "tpm_current": tpm_current,
                 "total_requests": total_requests, "total_requests_current": total_requests_current,
                 "interval": (entry.get("interval", 0) or 0) if entry else 0,
+                "cooldown": (entry.get("cooldown", 300) or 300) if entry else 300,
                 "consecutive_failures": entry.get("consecutive_failures", 0) if entry else 0,
                 "last_failure_time": entry.get("last_failure_time") if entry else None,
                 "last_success_time": entry.get("last_success_time") if entry else None,

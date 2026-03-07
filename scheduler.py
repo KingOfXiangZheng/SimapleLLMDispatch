@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 
 import requests as http_client
 
+from config import Cooldown
 from models import ProviderDAO, GroupDAO, UsageLogDAO
 from rate_limiter import rate_limiter
 
@@ -227,11 +228,12 @@ class Scheduler:
                     
                     # Cooldown check
                     if model_info.get("consecutive_failures", 0) >= 3:
+                        cooldown_secs = model_info.get("cooldown", Cooldown) or Cooldown
                         last_failure_str = model_info.get("last_failure_time")
                         if last_failure_str:
                             try:
                                 last_failure = datetime.fromisoformat(last_failure_str)
-                                if datetime.utcnow() - last_failure < timedelta(minutes=5):
+                                if datetime.utcnow() - last_failure < timedelta(seconds=cooldown_secs):
                                     continue # Still in cooldown
                             except ValueError:
                                 continue # Parse error, safer to skip
