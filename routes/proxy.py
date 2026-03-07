@@ -98,6 +98,23 @@ def _handle_stream(url, headers, body, provider, model):
     it = resp.iter_content(chunk_size=None)
     try:
         first_chunk = next(it)
+        if first_chunk:
+            # Check for silent failures (200 OK but error/abort in payload)
+            text = first_chunk.decode("utf-8", errors="replace")
+            for line in text.split("\n"):
+                if line.startswith("data:") and line.strip() != "data: [DONE]":
+                    try:
+                        parsed = json.loads(line[5:])
+                        # Check choices for finish_reason: abort
+                        choices = parsed.get("choices", [])
+                        if choices and choices[0].get("finish_reason") == "abort":
+                            raise RuntimeError(f"Provider returned abort: {line[5:]}")
+                        # Check for top-level or choice-level error
+                        if parsed.get("error") or (choices and choices[0].get("delta", {}).get("error")):
+                            raise RuntimeError(f"Provider returned error in stream: {line[5:]}")
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+
     except StopIteration:
         first_chunk = None
     except Exception as e:
