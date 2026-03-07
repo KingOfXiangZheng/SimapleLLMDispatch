@@ -58,13 +58,19 @@
                   v-for="m in effectiveModelsWithRPD(p).slice(0, 3)" 
                   :key="m.model"
                   class="badge" 
-                  :class="m.consecutive_failures >= 3 ? (isModelInCooldown(m) ? 'badge-yellow' : 'badge-red') : (m.consecutive_failures > 0 ? 'badge-yellow' : 'badge-accent')"
+                  :class="{
+                    'badge-disabled': m.enabled === false,
+                    'badge-red': m.enabled !== false && m.consecutive_failures >= 3 && !isModelInCooldown(m),
+                    'badge-yellow': m.enabled !== false && (m.consecutive_failures > 0 || isModelInCooldown(m)),
+                    'badge-accent': m.enabled !== false && m.consecutive_failures === 0
+                  }"
                   style="margin-right:0.2rem"
                   :title="getHealthTooltip(m)"
                 >
                   {{ m.model }}
                   <template v-if="m.rpd"> · {{ m.rpd }}/d</template>
                   <template v-if="m.rpm"> · {{ m.rpm }}/m</template>
+                  <template v-if="m.interval"> · {{ m.interval }}s</template>
                 </span>
                 <span 
                   class="badge badge-yellow"
@@ -177,7 +183,14 @@
                           {{ q.model }}
                         </span>
                         <span 
-                          v-if="q.consecutive_failures > 0"
+                          v-if="q.enabled === false"
+                          class="badge"
+                          style="font-size:0.75rem;padding:0.25rem 0.6rem;margin:0;background:rgba(255,255,255,0.1);color:var(--muted)"
+                        >
+                          ✕ 已禁用
+                        </span>
+                        <span 
+                          v-else-if="q.consecutive_failures > 0"
                           class="badge"
                           :class="q.consecutive_failures >= 3 ? (isModelInCooldown(q) ? 'badge-yellow' : 'badge-red') : 'badge-yellow'"
                           style="font-size:0.75rem;padding:0.25rem 0.6rem;margin:0"
@@ -193,8 +206,10 @@
                       <QuotaBar label="TPM" :current="q.tpm_current || 0" :max="q.tpm" color="yellow" compact />
                       <QuotaBar label="总调" :current="q.total_requests_current || 0" :max="q.total_requests" color="green" compact />
                       <QuotaBar label="总T" :current="q.total_tokens_current || 0" :max="q.total_tokens" color="accent-light" compact />
-                      <div v-if="q.interval > 0" style="font-size:0.7rem;color:var(--dim);margin-top:0.25rem;text-align:right">
-                        ⏱️ 最小间隔: {{ q.interval }}s
+                      <div v-if="q.interval > 0" 
+                           style="margin-top:0.4rem; padding: 0.2rem 0.4rem; border-radius: 4px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); font-size: 0.68rem; color: var(--accent-light); display: inline-flex; align-items: center; gap: 4px;"
+                      >
+                        ⏱️ 最小请求间隔: {{ q.interval }}s
                       </div>
                     </div>
                   </div>
@@ -374,5 +389,12 @@ function toggleQuotaDetail(p) {
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 1.25rem;
+}
+
+.badge-disabled {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--dim) !important;
+  border: 1px dashed var(--border) !important;
+  text-decoration: line-through;
 }
 </style>

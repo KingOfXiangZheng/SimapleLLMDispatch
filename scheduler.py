@@ -68,7 +68,7 @@ def get_effective_models(provider: dict) -> list[str]:
         return []
     # Normalize and return
     selected = parse_selected_models(provider)
-    return [s["model"] for s in selected]
+    return [s["model"] for s in selected if s.get("enabled", True) is not False]
 
 
 def get_model_rpd(provider: dict, model: str) -> int:

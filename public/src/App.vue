@@ -122,6 +122,8 @@ const pForm = reactive({
   model_total_requests: {},
   model_total_tokens: {},
   model_interval: {},
+  model_meta: {},
+  model_enabled: {},
   is_active: true,
   _fetching: false
 })
@@ -224,6 +226,8 @@ function resetPForm() {
     model_rpd: {}, model_rpm: {}, model_tpm: {},
     model_total_requests: {}, model_total_tokens: {},
     model_interval: {},
+    model_meta: {},
+    model_enabled: {},
     is_active: true, _fetching: false
   })
 }
@@ -247,7 +251,7 @@ function openProviderModal(p = null) {
     const sm = p.selected_models
     if (sm != null && sm.length && typeof sm[0] === 'object') {
       pForm.selected_set = new Set(sm.map(s => s.model))
-      const rpd = {}, rpm = {}, tpm = {}, tr = {}, tt = {}, iv = {}
+      const rpd = {}, rpm = {}, tpm = {}, tr = {}, tt = {}, iv = {}, meta = {}, enabled = {}
       sm.forEach(s => {
         rpd[s.model] = s.rpd || 0
         rpm[s.model] = s.rpm || 0
@@ -255,6 +259,14 @@ function openProviderModal(p = null) {
         tr[s.model] = s.total_requests || 0
         tt[s.model] = s.total_tokens || 0
         iv[s.model] = s.interval || 0
+        enabled[s.model] = s.enabled !== false // Default to true
+        
+        // Explicitly preserve health and timestamp metadata
+        meta[s.model] = {
+          consecutive_failures: s.consecutive_failures || 0,
+          last_failure_time: s.last_failure_time || null,
+          last_success_time: s.last_success_time || null
+        }
       })
       pForm.model_rpd = rpd
       pForm.model_rpm = rpm
@@ -262,6 +274,8 @@ function openProviderModal(p = null) {
       pForm.model_total_requests = tr
       pForm.model_total_tokens = tt
       pForm.model_interval = iv
+      pForm.model_meta = meta
+      pForm.model_enabled = enabled
     } else if (sm != null && sm.length) {
       pForm.selected_set = new Set(sm)
     } else if (sm == null) {
@@ -302,7 +316,11 @@ async function saveProvider() {
     tpm: parseInt(pForm.model_tpm[m]) || 0,
     total_requests: parseInt(pForm.model_total_requests[m]) || 0,
     total_tokens: parseInt(pForm.model_total_tokens[m]) || 0,
-    interval: parseInt(pForm.model_interval[m]) || 0
+    interval: parseInt(pForm.model_interval[m]) || 0,
+    enabled: pForm.model_enabled[m] !== false,
+    consecutive_failures: pForm.model_meta[m]?.consecutive_failures || 0,
+    last_failure_time: pForm.model_meta[m]?.last_failure_time || null,
+    last_success_time: pForm.model_meta[m]?.last_success_time || null
   }))
 
   const body = {

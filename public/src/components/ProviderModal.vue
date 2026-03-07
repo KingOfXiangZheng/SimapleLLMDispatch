@@ -115,7 +115,7 @@
             <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;" @click="toggleModel(m)">
               <input 
                 type="checkbox" 
-                :checked="initialForm.selected_set.has(m)"
+                :checked="initialForm.model_enabled[m] !== false && initialForm.selected_set.has(m)"
                 @click.stop="toggleModel(m)"
                 style="width:15px;height:15px;flex-shrink:0;cursor:pointer;margin:0;padding:0;accent-color:var(--accent)"
               >
@@ -124,6 +124,8 @@
                 :title="m"
               >
                 {{ m }}
+                <span v-if="initialForm.selected_set.has(m) && initialForm.model_enabled[m] === false" 
+                      style="font-size:0.65rem; color:var(--muted); margin-left:4px">(逻辑取消)</span>
               </span>
             </div>
             <div v-if="initialForm.selected_set.has(m)"
@@ -262,18 +264,25 @@ function applyPreset(preset) {
 
 function toggleModel(m) {
   if (!props.initialForm) return
-  if (props.initialForm.selected_set.has(m)) {
-    props.initialForm.selected_set.delete(m)
-  } else {
+  if (!props.initialForm.selected_set.has(m)) {
+    // First time configuring this model
     props.initialForm.selected_set.add(m)
+    props.initialForm.model_enabled[m] = true
+  } else {
+    // Toggle logical state
+    props.initialForm.model_enabled[m] = !props.initialForm.model_enabled[m]
   }
-  // Trigger reactivity by reassigning
+  // Trigger reactivity
   props.initialForm.selected_set = new Set(props.initialForm.selected_set)
 }
 
 function selectAll() {
   if (!props.initialForm || !props.initialForm.all_models) return
-  props.initialForm.selected_set = new Set(props.initialForm.all_models)
+  props.initialForm.all_models.forEach(m => {
+    props.initialForm.selected_set.add(m)
+    props.initialForm.model_enabled[m] = true
+  })
+  props.initialForm.selected_set = new Set(props.initialForm.selected_set)
 }
 
 function selectNone() {
