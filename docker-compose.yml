@@ -7,7 +7,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./:/app
+      - ./data:/app/data
     environment:
       - DB_PATH=/app/data/llm_dispatcher.db
       - PORT=3100
