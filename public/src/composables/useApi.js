@@ -3,13 +3,42 @@ import { ref } from 'vue'
 
 export function useApi() {
   async function api(url, opts = {}) {
+    const token = localStorage.getItem('admin_token') || ''
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
     const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       ...opts,
       body: opts.body ? JSON.stringify(opts.body) : undefined
     })
+
+    if (res.status === 401) {
+      localStorage.removeItem('admin_token')
+      window.dispatchEvent(new CustomEvent('admin-auth-failed'))
+    }
+
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Request failed')
+    return data
+  }
+
+  async function apiVerifyKey(key) {
+    // We send the key in the header to verify via the before_request hook
+    const res = await fetch('/admin/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      }
+    })
+    if (!res.ok) throw new Error('Invalid key')
+    const data = await res.json()
+    if (data.success) {
+      localStorage.setItem('admin_token', key)
+    }
     return data
   }
 
@@ -125,6 +154,7 @@ export function useApi() {
     loadAllModels,
     saveGroup,
     deleteGroup,
-    loadLogs
+    loadLogs,
+    apiVerifyKey
   }
 }

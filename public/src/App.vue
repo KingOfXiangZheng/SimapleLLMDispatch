@@ -87,7 +87,8 @@ const {
   loadProviderStats: apiLoadProviderStats,
   saveGroup: apiSaveGroup,
   deleteGroup: apiDeleteGroup,
-  loadLogs: apiLoadLogs
+  loadLogs: apiLoadLogs,
+  apiVerifyKey
 } = useApi()
 
 const tab = ref('providers')
@@ -466,8 +467,14 @@ async function deleteGroup(g) {
 
 let autoRefreshTimer = null
 
-onMounted(() => { 
+onMounted(async () => { 
+  window.addEventListener('admin-auth-failed', () => {
+    showToast('会话已失效', 'error')
+    setTimeout(() => location.reload(), 1000)
+  })
+
   loadProviders(); loadStats(); loadGroups(); loadLogs();
+  
   autoRefreshTimer = setInterval(() => {
     if (tab.value === 'providers') {
       loadProviders(providerPaging.page);

@@ -1,11 +1,58 @@
 """Admin API routes for providers, groups, and logs."""
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, abort, make_response
+from functools import wraps
 from models import ProviderDAO, GroupDAO, UsageLogDAO
 from scheduler import Scheduler, parse_selected_models, get_effective_models, get_model_rpm, get_model_tpm, get_model_total_requests, get_model_total_tokens
 from rate_limiter import rate_limiter as _rate_limiter
+import config
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+
+@admin_bp.before_request
+def check_admin_auth():
+    """Verify ADMIN_KEY if set."""
+    if not config.ADMIN_KEY:
+        return
+    
+    # Allow access to login endpoint without auth
+    if request.path == "/admin/login":
+        return
+
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    
+    # Fallback to cookie for UI protection
+    if not token:
+        token = request.cookies.get("admin_token")
+    
+    if token != config.ADMIN_KEY:
+        return jsonify({"error": "Unauthorized"}), 401
+
+
+@admin_bp.route("/login", methods=["POST"])
+def admin_login():
+    """Verify key and return token."""
+    data = request.json or {}
+    key = data.get("key")
+    if key == config.ADMIN_KEY:
+        return jsonify({"success": True, "token": key})
+    return jsonify({"error": "Invalid key"}), 401
+
+
+@admin_bp.route("/verify", methods=["POST"])
+def verify_admin():
+    """Endpoint for frontend to verify key."""
+    # If the request reaches here, it means:
+    # 1. ADMIN_KEY is not set (auth is not enforced)
+    # 2. OR the key was already verified by the @admin_bp.before_request hook
+    return jsonify({
+        "success": True,
+        "auth_enabled": bool(config.ADMIN_KEY)
+    })
 
 
 def _auto_sync_provider_group(name: str, selected_models):
