@@ -224,6 +224,8 @@ def provider_quota(pid):
                 "last_failure_time": entry.get("last_failure_time") if entry else None,
                 "last_success_time": entry.get("last_success_time") if entry else None,
                 "enabled": (entry.get("enabled", True) is not False) if entry else True,
+                "total_tokens":total_tokens,
+                "total_tokens_current":total_tokens_current
             })
         provider_rpm = provider.get("max_rpm", 0) or 0
         provider_rpm_current = _rate_limiter.get_provider_rpm_current(provider["id"])
