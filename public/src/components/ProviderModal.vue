@@ -235,9 +235,10 @@ const emit = defineEmits(['close', 'save', 'fetchModelsInModal'])
 watch(() => props.initialForm?.models_text, (val) => {
   if (!props.initialForm) return
   const list = (val || '').split(',').map(s => s.trim()).filter(Boolean)
-  // Merge current all_models with the new list to preserve any fetched but not typed models
-  const current = props.initialForm.all_models || []
-  const merged = Array.from(new Set([...list, ...current]))
+  // Keep all models that are currently selected even if removed from text
+  // This prevents loss of quota config when user edits the text box
+  const selected = Array.from(props.initialForm.selected_set || [])
+  const merged = Array.from(new Set([...list, ...selected]))
   props.initialForm.all_models = merged
 })
 
